@@ -8,12 +8,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Organic-Programming/go-holons/pkg/transport"
 	"github.com/Organic-Programming/sophia-who/pkg/identity"
 
+	"github.com/Organic-Programming/op/internal/grpcclient"
 	pb "github.com/Organic-Programming/op/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -318,5 +321,88 @@ func TestListenAndServePortConflict(t *testing.T) {
 	err = ListenAndServe(fmt.Sprintf("tcp://:%d", port), true)
 	if err == nil {
 		t.Fatal("expected error for port conflict")
+	}
+}
+
+// --- mem:// transport test (using go-holons SDK MemListener) ---
+
+func TestMemTransport(t *testing.T) {
+	root := t.TempDir()
+	seedHolon(t, root, "mem-1", "MemAlpha")
+
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(original) //nolint:errcheck
+
+	mem := transport.NewMemListener()
+	s := grpc.NewServer()
+	pb.RegisterOPServiceServer(s, &Server{})
+	go func() { _ = s.Serve(mem) }()
+	defer s.Stop()
+
+	conn, err := grpc.NewClient(
+		"passthrough:///mem",
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			return mem.Dial()
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	client := pb.NewOPServiceClient(conn)
+	resp, err := client.Discover(context.Background(), &pb.DiscoverRequest{})
+	if err != nil {
+		t.Fatalf("Discover over mem://: %v", err)
+	}
+	if len(resp.Entries) != 1 {
+		t.Errorf("Discover returned %d entries, want 1", len(resp.Entries))
+	}
+}
+
+// --- ws:// transport test ---
+
+func TestWSTransport(t *testing.T) {
+	root := t.TempDir()
+	seedHolon(t, root, "ws-1", "WSAlpha")
+
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(original) //nolint:errcheck
+
+	wsLis, err := transport.Listen("ws://127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ws listen: %v", err)
+	}
+	defer wsLis.Close()
+
+	s := grpc.NewServer()
+	pb.RegisterOPServiceServer(s, &Server{})
+	reflection.Register(s)
+	go func() { _ = s.Serve(wsLis) }()
+	defer s.Stop()
+
+	// Get the actual port from the WS listener's addr
+	wsAddr := wsLis.Addr().String()
+
+	// Use OP's DialWebSocket to call Discover
+	result, err := grpcclient.DialWebSocket(wsAddr, "Discover", "{}")
+	if err != nil {
+		t.Fatalf("DialWebSocket Discover: %v", err)
+	}
+	if result.Output == "" {
+		t.Error("expected non-empty output from Discover")
 	}
 }

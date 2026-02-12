@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"nhooyr.io/websocket"
 )
 
 // CallResult holds the output of a gRPC call.
@@ -411,3 +412,89 @@ type pipeAddr struct{}
 
 func (pipeAddr) Network() string { return "pipe" }
 func (pipeAddr) String() string  { return "stdio://" }
+
+// DialWebSocket connects to a holon's gRPC server via WebSocket and calls
+// a method. URI should be "ws://host:port/path" or "wss://...".
+func DialWebSocket(wsURI, methodName, inputJSON string) (*CallResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Establish WebSocket connection
+	c, _, err := websocket.Dial(ctx, wsURI, &websocket.DialOptions{
+		Subprotocols: []string{"grpc"},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("websocket dial %s: %w", wsURI, err)
+	}
+
+	// Wrap as net.Conn
+	wsConn := websocket.NetConn(ctx, c, websocket.MessageBinary)
+
+	// Single-use dialer
+	dialed := false
+	dialer := func(_ context.Context, _ string) (net.Conn, error) {
+		if dialed {
+			return nil, fmt.Errorf("ws connection already consumed")
+		}
+		dialed = true
+		return wsConn, nil
+	}
+
+	//nolint:staticcheck // DialContext needed for single-connection transports.
+	conn, err := grpc.DialContext(ctx,
+		"passthrough:///ws",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(dialer),
+		grpc.WithBlock(),
+	)
+	if err != nil {
+		wsConn.Close()
+		return nil, fmt.Errorf("grpc handshake over ws: %w", err)
+	}
+	defer conn.Close()
+
+	// Use reflection to discover and call the method
+	refClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
+	stream, err := refClient.ServerReflectionInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("reflection over ws: %w", err)
+	}
+
+	if err := stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
+		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_ListServices{
+			ListServices: "",
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("list services: %w", err)
+	}
+
+	listResp, err := stream.Recv()
+	if err != nil {
+		return nil, fmt.Errorf("list services response: %w", err)
+	}
+
+	listResult := listResp.GetListServicesResponse()
+	if listResult == nil {
+		return nil, fmt.Errorf("no services found via ws")
+	}
+
+	for _, svc := range listResult.Service {
+		if svc.Name == "grpc.reflection.v1alpha.ServerReflection" ||
+			svc.Name == "grpc.reflection.v1.ServerReflection" {
+			continue
+		}
+		desc, err := resolveService(stream, svc.Name)
+		if err != nil {
+			continue
+		}
+		methods := desc.Methods()
+		for i := 0; i < methods.Len(); i++ {
+			method := methods.Get(i)
+			if string(method.Name()) == methodName {
+				return callMethod(ctx, conn, desc, method, inputJSON)
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("method %q not found via ws", methodName)
+}

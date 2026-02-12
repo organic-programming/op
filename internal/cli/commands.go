@@ -46,11 +46,13 @@ func Run(args []string, version string) int {
 		PrintUsage()
 		return 0
 
-	// --- URI dispatch: grpc://, grpc+stdio://, grpc+unix:// ---
+	// --- URI dispatch: grpc://, grpc+stdio://, grpc+unix://, grpc+ws:// ---
 	default:
 		if strings.HasPrefix(cmd, "grpc://") ||
 			strings.HasPrefix(cmd, "grpc+stdio://") ||
-			strings.HasPrefix(cmd, "grpc+unix://") {
+			strings.HasPrefix(cmd, "grpc+unix://") ||
+			strings.HasPrefix(cmd, "grpc+ws://") ||
+			strings.HasPrefix(cmd, "grpc+wss://") {
 			return cmdGRPC(cmd, rest)
 		}
 		return cmdDispatch(cmd, rest)
@@ -72,6 +74,7 @@ Facet dispatch:
   op grpc://<host:port> <method>         gRPC over TCP (existing server)
   op grpc+stdio://<holon> <method>       gRPC over stdio pipe (ephemeral)
   op grpc+unix://<path> <method>         gRPC over Unix socket
+  op grpc+ws://<host:port> <method>      gRPC over WebSocket
   op run <holon>:<port>                  start a holon's gRPC server (TCP)
   op run <holon> --listen <URI>          start with any transport
 
@@ -358,6 +361,8 @@ func cmdGRPC(uri string, args []string) int {
 		return cmdGRPCStdio(uri, args)
 	case strings.HasPrefix(uri, "grpc+unix://"):
 		return cmdGRPCDirect("unix://"+strings.TrimPrefix(uri, "grpc+unix://"), args)
+	case strings.HasPrefix(uri, "grpc+ws://") || strings.HasPrefix(uri, "grpc+wss://"):
+		return cmdGRPCWebSocket(uri, args)
 	default:
 		return cmdGRPCTCP(uri, args)
 	}
@@ -450,6 +455,40 @@ func cmdGRPCStdio(uri string, args []string) int {
 	}
 
 	result, err := grpcclient.DialStdio(binary, method, inputJSON)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
+		return 1
+	}
+
+	fmt.Println(result.Output)
+	return 0
+}
+
+// cmdGRPCWebSocket handles grpc+ws://host:port[/path] and grpc+wss://...
+// Connects to an existing WebSocket gRPC server.
+func cmdGRPCWebSocket(uri string, args []string) int {
+	// Convert grpc+ws://host:port → ws://host:port
+	// Convert grpc+wss://host:port → wss://host:port
+	wsURI := strings.TrimPrefix(uri, "grpc+")
+
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "op grpc: method required")
+		fmt.Fprintf(os.Stderr, "usage: op %s <method>\n", uri)
+		return 1
+	}
+
+	method := args[0]
+	inputJSON := "{}"
+	if len(args) > 1 {
+		inputJSON = args[1]
+	}
+
+	// Ensure path includes /grpc if not specified
+	if !strings.Contains(wsURI[5:], "/") { // skip "ws://" prefix
+		wsURI += "/grpc"
+	}
+
+	result, err := grpcclient.DialWebSocket(wsURI, method, inputJSON)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
 		return 1
