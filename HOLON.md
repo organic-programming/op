@@ -49,9 +49,37 @@ OP does not implement domain logic. It routes.
 
 ## Dispatch model
 
+### Promoted verbs
+
+Some holon commands are so fundamental they become top-level verbs.
+Creating and inspecting holons is the first thing any actant does —
+these commands delegate to Sophia Who?:
+
 ```
-op <holon> <command> [args...]       → local invocation (subprocess)
-op @<host:port> <holon> <command>    → remote invocation (gRPC)
+op new                               → creates a new holon identity
+op list                              → lists all known holons
+op show <uuid>                       → displays a holon's identity
+op pin <uuid>                        → captures version/commit/arch
+```
+
+### Full namespace
+
+Every holon is accessible through the `op <holon> <command>` syntax.
+The promoted verbs are shortcuts — the full form always works:
+
+```
+op who new                           → same as op new
+op who list                          → same as op list
+op atlas pull                        → dispatches to rhizome-atlas
+op translate file.md --to fr         → dispatches to babel-fish-translator
+```
+
+### Remote invocation
+
+Prefix with `@host:port` to reach a holon over gRPC:
+
+```
+op @remote:8080 whisper transcribe   → remote gRPC call
 ```
 
 ### Local discovery
@@ -67,14 +95,9 @@ OP discovers holons in order:
 OP connects to a gRPC endpoint and uses reflection or a known
 service registry to discover available holons.
 
-## Commands
+## Commands (OP's own)
 
 ```
-op who list                          → dispatches to sophia-who
-op atlas pull                        → dispatches to rhizome-atlas
-op translate file.md --to fr         → dispatches to babel-fish-translator
-op @remote:8080 whisper transcribe   → remote gRPC call
-
 op discover                          → list all available holons (local + remote)
 op status                            → health check on known endpoints
 op version                           → show op version and holon registry

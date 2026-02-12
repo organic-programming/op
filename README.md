@@ -9,12 +9,20 @@ commands to them through a single interface.
 ## Usage
 
 ```
-op <holon> <command> [args...]       → local invocation
-op @<host:port> <holon> <command>    → remote invocation (gRPC)
+# Promoted verbs (delegate to Sophia Who?)
+op new                               → create a new holon identity
+op list                              → list all known holons
+op show <uuid>                       → display a holon's identity
 
-op who list                          → sophia-who
+# Full namespace (dispatch to any holon)
+op who new                           → same as op new
 op atlas pull                        → rhizome-atlas
 op translate file.md --to fr         → babel-fish-translator
+
+# Remote invocation
+op @remote:8080 whisper transcribe   → gRPC call
+
+# OP's own commands
 op discover                          → list all available holons
 ```
 
