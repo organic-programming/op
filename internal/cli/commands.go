@@ -46,9 +46,11 @@ func Run(args []string, version string) int {
 		PrintUsage()
 		return 0
 
-	// --- URI dispatch: grpc://... ---
+	// --- URI dispatch: grpc://, grpc+stdio://, grpc+unix:// ---
 	default:
-		if strings.HasPrefix(cmd, "grpc://") {
+		if strings.HasPrefix(cmd, "grpc://") ||
+			strings.HasPrefix(cmd, "grpc+stdio://") ||
+			strings.HasPrefix(cmd, "grpc+unix://") {
 			return cmdGRPC(cmd, rest)
 		}
 		return cmdDispatch(cmd, rest)
@@ -60,22 +62,24 @@ func PrintUsage() {
 	fmt.Print(`op — the Organic Programming CLI
 
 Promoted verbs (Sophia Who?):
-  op new                        create a new holon identity
-  op list                       list all known holons
-  op show <uuid>                display a holon's identity
-  op pin <uuid>                 capture version/commit/arch
+  op new                                 create a new holon identity
+  op list                                list all known holons
+  op show <uuid>                         display a holon's identity
+  op pin <uuid>                          capture version/commit/arch
 
 Facet dispatch:
-  op <holon> <command> [args]   CLI facet (subprocess)
-  op grpc://<holon> <method>    gRPC facet (ephemeral server)
-  op grpc://<host:port> <method> gRPC facet (existing server)
-  op run <holon>:<port>         start a holon's gRPC server
+  op <holon> <command> [args]            CLI facet (subprocess)
+  op grpc://<host:port> <method>         gRPC over TCP (existing server)
+  op grpc+stdio://<holon> <method>       gRPC over stdio pipe (ephemeral)
+  op grpc+unix://<path> <method>         gRPC over Unix socket
+  op run <holon>:<port>                  start a holon's gRPC server (TCP)
+  op run <holon> --listen <URI>          start with any transport
 
 OP commands:
-  op discover                   list available holons
-  op serve [--port 9090]        start OP's own gRPC server
-  op version                    show op version
-  op help                       this message
+  op discover                            list available holons
+  op serve [--listen tcp://:9090]        start OP's own gRPC server
+  op version                             show op version
+  op help                                this message
 `)
 }
 
@@ -270,11 +274,16 @@ func cmdDiscover() int {
 }
 
 func cmdServe(args []string) int {
-	port := flagOrDefault(args, "--port", "9090")
+	// Support both --listen <URI> and legacy --port <port>
+	listenURI := flagOrDefault(args, "--listen", "")
+	if listenURI == "" {
+		port := flagOrDefault(args, "--port", "9090")
+		listenURI = "tcp://:" + port
+	}
 	noReflect := flagValue(args, "--no-reflect")
 	reflect := noReflect == ""
 
-	if err := server.ListenAndServe(port, reflect); err != nil {
+	if err := server.ListenAndServe(listenURI, reflect); err != nil {
 		fmt.Fprintf(os.Stderr, "op serve: %v\n", err)
 		return 1
 	}
@@ -282,21 +291,31 @@ func cmdServe(args []string) int {
 }
 
 // cmdRun starts a holon's gRPC server as a background process.
-// Usage: op run <holon>:<port>
+// Usage: op run <holon>:<port>  or  op run <holon> --listen <URI>
 func cmdRun(args []string) int {
 	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "op run: requires <holon>:<port> (e.g. op run who:9090)")
+		fmt.Fprintln(os.Stderr, "op run: requires <holon>:<port> or <holon> --listen <URI>")
 		return 1
 	}
 
-	holonPort := args[0]
-	parts := strings.SplitN(holonPort, ":", 2)
-	if len(parts) != 2 || parts[1] == "" {
-		fmt.Fprintln(os.Stderr, "op run: format is <holon>:<port> (e.g. op run who:9090)")
-		return 1
+	// Check for --listen form first
+	listenURI := flagValue(args, "--listen")
+	var holonName string
+
+	if listenURI != "" {
+		// op run <holon> --listen <URI>
+		holonName = args[0]
+	} else {
+		// op run <holon>:<port>  (shorthand for tcp)
+		holonPort := args[0]
+		parts := strings.SplitN(holonPort, ":", 2)
+		if len(parts) != 2 || parts[1] == "" {
+			fmt.Fprintln(os.Stderr, "op run: format is <holon>:<port> or <holon> --listen <URI>")
+			return 1
+		}
+		holonName = parts[0]
+		listenURI = "tcp://:" + parts[1]
 	}
-	holonName := parts[0]
-	port := parts[1]
 
 	binary, err := resolveHolon(holonName)
 	if err != nil {
@@ -304,8 +323,8 @@ func cmdRun(args []string) int {
 		return 1
 	}
 
-	// Launch: <binary> serve --port <port>
-	cmd := exec.Command(binary, "serve", "--port", port)
+	// Launch: <binary> serve --listen <URI>
+	cmd := exec.Command(binary, "serve", "--listen", listenURI)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -314,9 +333,8 @@ func cmdRun(args []string) int {
 		return 1
 	}
 
-	fmt.Printf("op run: started %s (pid %d) on port %s\n", holonName, cmd.Process.Pid, port)
-	fmt.Printf("op run: connect with: op grpc://localhost:%s <method>\n", port)
-	fmt.Printf("op run: stop with:    kill %d\n", cmd.Process.Pid)
+	fmt.Printf("op run: started %s (pid %d) on %s\n", holonName, cmd.Process.Pid, listenURI)
+	fmt.Printf("op run: stop with: kill %d\n", cmd.Process.Pid)
 
 	// Detach — the process runs in the background
 	if err := cmd.Process.Release(); err != nil {
@@ -326,53 +344,37 @@ func cmdRun(args []string) int {
 	return 0
 }
 
-// cmdGRPC handles grpc:// URI dispatching.
+// cmdGRPC handles gRPC URI dispatching.
 //
-// Three modes:
-//   - grpc://host:port <method>     → connect to existing server
-//   - grpc://host:port              → list available methods
-//   - grpc://<holon> <method>       → ephemeral: start binary, call, stop
+// Transport schemes:
+//   - grpc://host:port <method>       → TCP to existing server
+//   - grpc://host:port                → list available methods
+//   - grpc://holon <method>           → ephemeral TCP: start binary, call, stop
+//   - grpc+stdio://holon <method>     → stdio pipe: launch, pipe, call, done
+//   - grpc+unix://path <method>       → Unix domain socket connection
 func cmdGRPC(uri string, args []string) int {
-	// Strip the scheme
+	switch {
+	case strings.HasPrefix(uri, "grpc+stdio://"):
+		return cmdGRPCStdio(uri, args)
+	case strings.HasPrefix(uri, "grpc+unix://"):
+		return cmdGRPCDirect("unix://"+strings.TrimPrefix(uri, "grpc+unix://"), args)
+	default:
+		return cmdGRPCTCP(uri, args)
+	}
+}
+
+// cmdGRPCTCP handles grpc://host:port and grpc://holon (ephemeral TCP).
+func cmdGRPCTCP(uri string, args []string) int {
 	address := strings.TrimPrefix(uri, "grpc://")
 
-	// Determine if this is a host:port or a holon name
 	_, _, err := net.SplitHostPort(address)
 	isHostPort := err == nil
 
 	if isHostPort {
-		// Direct connection to an existing server
-		if len(args) == 0 {
-			// No method specified — list available methods
-			methods, err := grpcclient.ListMethods(address)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
-				return 1
-			}
-			fmt.Printf("Available methods at %s:\n", address)
-			for _, m := range methods {
-				fmt.Printf("  %s\n", m)
-			}
-			return 0
-		}
-
-		method := args[0]
-		inputJSON := "{}"
-		if len(args) > 1 {
-			inputJSON = args[1]
-		}
-
-		result, err := grpcclient.Dial(address, method, inputJSON)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
-			return 1
-		}
-
-		fmt.Println(result.Output)
-		return 0
+		return cmdGRPCDirect(address, args)
 	}
 
-	// Ephemeral mode: address is a holon name
+	// Ephemeral TCP mode: address is a holon name
 	holonName := address
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "op grpc: method required for ephemeral mode")
@@ -393,10 +395,9 @@ func cmdGRPC(uri string, args []string) int {
 		return 1
 	}
 	port := fmt.Sprintf("%d", lis.Addr().(*net.TCPAddr).Port)
-	lis.Close() // Release so the holon can bind
+	lis.Close()
 
-	// Start the holon server
-	cmd := exec.Command(binary, "serve", "--port", port)
+	cmd := exec.Command(binary, "serve", "--listen", "tcp://:"+port)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: cannot start %s: %v\n", holonName, err)
@@ -407,7 +408,6 @@ func cmdGRPC(uri string, args []string) int {
 		cmd.Wait()         //nolint:errcheck
 	}()
 
-	// Wait for the server to be ready (poll TCP)
 	target := fmt.Sprintf("localhost:%s", port)
 	ready := false
 	for i := 0; i < 50; i++ {
@@ -424,14 +424,63 @@ func cmdGRPC(uri string, args []string) int {
 		return 1
 	}
 
-	// Call the RPC
+	return cmdGRPCDirect(target, args)
+}
+
+// cmdGRPCStdio handles grpc+stdio://holon — launches the holon with
+// serve --listen stdio:// and communicates via stdin/stdout pipes.
+func cmdGRPCStdio(uri string, args []string) int {
+	holonName := strings.TrimPrefix(uri, "grpc+stdio://")
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "op grpc: method required")
+		fmt.Fprintf(os.Stderr, "usage: op grpc+stdio://%s <method>\n", holonName)
+		return 1
+	}
+
+	binary, err := resolveHolon(holonName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op grpc: holon %q not found\n", holonName)
+		return 1
+	}
+
 	method := args[0]
 	inputJSON := "{}"
 	if len(args) > 1 {
 		inputJSON = args[1]
 	}
 
-	result, err := grpcclient.Dial(target, method, inputJSON)
+	result, err := grpcclient.DialStdio(binary, method, inputJSON)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
+		return 1
+	}
+
+	fmt.Println(result.Output)
+	return 0
+}
+
+// cmdGRPCDirect calls an RPC on an existing gRPC server at the given address.
+func cmdGRPCDirect(address string, args []string) int {
+	if len(args) == 0 {
+		methods, err := grpcclient.ListMethods(address)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
+			return 1
+		}
+		fmt.Printf("Available methods at %s:\n", address)
+		for _, m := range methods {
+			fmt.Printf("  %s\n", m)
+		}
+		return 0
+	}
+
+	method := args[0]
+	inputJSON := "{}"
+	if len(args) > 1 {
+		inputJSON = args[1]
+	}
+
+	result, err := grpcclient.Dial(address, method, inputJSON)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
 		return 1

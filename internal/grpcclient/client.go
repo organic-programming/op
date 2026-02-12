@@ -4,9 +4,14 @@
 package grpcclient
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
+	"os/exec"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -260,3 +265,149 @@ func callMethod(ctx context.Context, conn *grpc.ClientConn, svc protoreflect.Ser
 		Output:  string(prettyBytes),
 	}, nil
 }
+
+// DialStdio launches a holon binary with `serve --listen stdio://` and
+// communicates over stdin/stdout pipes. This is the purest form of
+// inter-holon gRPC — zero networking, zero port allocation.
+func DialStdio(binaryPath, methodName, inputJSON string) (*CallResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, binaryPath, "serve", "--listen", "stdio://")
+
+	stdinPipe, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("create stdin pipe: %w", err)
+	}
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("create stdout pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("start %s: %w", binaryPath, err)
+	}
+	defer func() {
+		cmd.Process.Kill() //nolint:errcheck
+		cmd.Wait()         //nolint:errcheck
+	}()
+
+	// Wait for the server to write its HTTP/2 SETTINGS frame.
+	// Reading the first byte proves the gRPC server is alive and
+	// the pipe is functional. We prepend it back via MultiReader.
+	firstByte := make([]byte, 1)
+	readCh := make(chan error, 1)
+	go func() {
+		_, err := io.ReadFull(stdoutPipe, firstByte)
+		readCh <- err
+	}()
+	select {
+	case err := <-readCh:
+		if err != nil {
+			return nil, fmt.Errorf("server did not start: %w", err)
+		}
+	case <-ctx.Done():
+		return nil, fmt.Errorf("server startup timeout")
+	}
+
+	// Create a net.Conn backed by the process's stdin/stdout.
+	// Prepend the first byte we already consumed.
+	pConn := &pipeConn{
+		reader: io.MultiReader(bytes.NewReader(firstByte), stdoutPipe),
+		writer: stdinPipe,
+	}
+
+	// The pipe is a single connection — the dialer must return it exactly
+	// once. Subsequent calls return an error (gRPC may try to reconnect).
+	var dialOnce sync.Once
+	dialer := func(ctx context.Context, _ string) (net.Conn, error) {
+		var conn net.Conn
+		dialOnce.Do(func() { conn = pConn })
+		if conn == nil {
+			return nil, fmt.Errorf("stdio pipe already consumed")
+		}
+		return conn, nil
+	}
+
+	// DialContext+WithBlock forces an immediate HTTP/2 handshake over
+	// the pipe, which is required for single-connection transports.
+	//nolint:staticcheck // DialContext is deprecated but needed for pipes.
+	conn, err := grpc.DialContext(ctx,
+		"passthrough:///stdio",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(dialer),
+		grpc.WithBlock(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create grpc client over stdio: %w", err)
+	}
+	defer conn.Close()
+
+	// Use reflection to discover and call the method
+	refClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
+	stream, err := refClient.ServerReflectionInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("reflection over stdio: %w", err)
+	}
+
+	if err := stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
+		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_ListServices{
+			ListServices: "",
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("list services: %w", err)
+	}
+
+	listResp, err := stream.Recv()
+	if err != nil {
+		return nil, fmt.Errorf("list services response: %w", err)
+	}
+
+	listResult := listResp.GetListServicesResponse()
+	if listResult == nil {
+		return nil, fmt.Errorf("no services found via stdio")
+	}
+
+	for _, svc := range listResult.Service {
+		if svc.Name == "grpc.reflection.v1alpha.ServerReflection" ||
+			svc.Name == "grpc.reflection.v1.ServerReflection" {
+			continue
+		}
+		desc, err := resolveService(stream, svc.Name)
+		if err != nil {
+			continue
+		}
+		methods := desc.Methods()
+		for i := 0; i < methods.Len(); i++ {
+			method := methods.Get(i)
+			if string(method.Name()) == methodName {
+				return callMethod(ctx, conn, desc, method, inputJSON)
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("method %q not found via stdio", methodName)
+}
+
+// pipeConn wraps an io.ReadCloser + io.WriteCloser as a net.Conn.
+type pipeConn struct {
+	reader interface{ Read([]byte) (int, error) }
+	writer interface {
+		Write([]byte) (int, error)
+		Close() error
+	}
+}
+
+func (c *pipeConn) Read(p []byte) (int, error)         { return c.reader.Read(p) }
+func (c *pipeConn) Write(p []byte) (int, error)        { return c.writer.Write(p) }
+func (c *pipeConn) Close() error                       { return c.writer.Close() }
+func (c *pipeConn) LocalAddr() net.Addr                { return pipeAddr{} }
+func (c *pipeConn) RemoteAddr() net.Addr               { return pipeAddr{} }
+func (c *pipeConn) SetDeadline(_ time.Time) error      { return nil }
+func (c *pipeConn) SetReadDeadline(_ time.Time) error  { return nil }
+func (c *pipeConn) SetWriteDeadline(_ time.Time) error { return nil }
+
+type pipeAddr struct{}
+
+func (pipeAddr) Network() string { return "pipe" }
+func (pipeAddr) String() string  { return "stdio://" }

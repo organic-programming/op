@@ -62,14 +62,38 @@ op atlas pull                        → subprocess: atlas pull
 op translate file.md --to fr         → subprocess: translate file.md --to fr
 ```
 
-### 2. gRPC facet — `op grpc://<address> <method>`
+### 2. gRPC facet — transport-agnostic RPC
 
 Connects to a holon's gRPC server and calls an RPC using **server
-reflection**. This works with ANY holon in ANY language — Go, Swift,
-Rust, Python — as long as it exposes a gRPC server with reflection
-enabled.
+reflection**. Works with ANY holon in ANY language — Go, Swift, Rust,
+Python — as long as it exposes a gRPC server with reflection enabled.
 
-**Ephemeral mode** — OP starts the binary, calls, and stops:
+Three transports are supported:
+
+**TCP** — classic network:
+
+```
+op grpc://localhost:9090 ListIdentities
+op grpc://192.168.1.10:9090 CreateIdentity '{"givenName":"X"}'
+```
+
+**stdio** — the purest form (zero networking):
+
+```
+op grpc+stdio://who ListIdentities
+```
+
+OP launches ` who serve --listen stdio://`, pipes stdin/stdout as a gRPC
+transport, calls the RPC, and kills the process. No port, no socket —
+just a pipe. This is how LSP works.
+
+**Unix socket** — fast local IPC:
+
+```
+op grpc+unix:///tmp/who.sock ListIdentities
+```
+
+**Ephemeral TCP** — OP manages the server lifecycle:
 
 ```
 op grpc://who ListIdentities
@@ -78,19 +102,12 @@ op grpc://who ListIdentities
 What happens:
 1. OP finds the `who` binary
 2. Allocates an ephemeral port
-3. Launches `who serve --port <port>`
-4. Waits for the TCP port to be ready
+3. Launches `who serve --listen tcp://:<port>`
+4. Polls TCP until ready
 5. Connects via gRPC reflection (no compiled stubs)
 6. Calls `ListIdentities` with a dynamic protobuf message
 7. Prints the JSON response
 8. Kills the server process
-
-**Existing server** — connect to a running server:
-
-```
-op grpc://localhost:9090 ListIdentities
-op grpc://192.168.1.10:9090 CreateIdentity '{"givenName":"X","familyName":"Y","motto":"Z","composer":"A"}'
-```
 
 **List available methods** — omit the method name:
 
@@ -114,34 +131,27 @@ holons, _ := identity.FindAll(".")
 
 `op run` starts any holon's gRPC server as a background process.
 The holon can be written in any language — all it needs is a `serve`
-command that accepts `--port`.
+command that accepts `--listen` (see Constitution Article 11).
 
 ```
 op run who:9090
-# op run: started who (pid 12345) on port 9090
-# op run: connect with: op grpc://localhost:9090 <method>
-# op run: stop with:    kill 12345
-```
+# op run: started who (pid 12345) on tcp://:9090
+# op run: stop with: kill 12345
 
-Then connect:
-
-```
-op grpc://localhost:9090 ListIdentities
-op grpc://localhost:9090 CreateIdentity '{"givenName":"Test"}'
+op run who --listen unix:///tmp/who.sock
+# op run: started who (pid 12346) on unix:///tmp/who.sock
 ```
 
 **Cross-language example** — a holon written in Swift:
 
 ```
-# The Swift holon binary understands: myholon serve --port <port>
 op run myholon:9090
 op grpc://localhost:9090 ProcessImage '{"path":"/tmp/photo.jpg"}'
 kill $(pgrep myholon)
 ```
 
 OP never needs to know what language the holon is written in. The
-contract (`.proto`) is the universal bridge. gRPC reflection is the
-universal discovery mechanism.
+contract (`.proto`) defines WHAT; the transport URI defines HOW.
 
 ## Promoted verbs
 
@@ -176,16 +186,19 @@ op new / list / show / pin
 # CLI facet (subprocess)
 op <holon> <command> [args]
 
-# gRPC facet (network)
-op grpc://<holon> <method>           ephemeral server
-op grpc://<host:port> <method>       existing server
-op run <holon>:<port>                start a holon's server
+# gRPC facet
+op grpc://host:port <method>             TCP (existing server)
+op grpc://holon <method>                 TCP (ephemeral)
+op grpc+stdio://holon <method>           stdio pipe (ephemeral)
+op grpc+unix://path <method>             Unix socket
+op run <holon>:<port>                    start server (TCP)
+op run <holon> --listen <URI>            start server (any transport)
 
 # OP's own
-op discover                          list available holons
-op serve [--port 9090]               start OP's own gRPC server
-op version                           show op version
-op help                              this message
+op discover                              list available holons
+op serve [--listen tcp://:9090]          start OP's own gRPC server
+op version                               show op version
+op help                                  this message
 ```
 
 ## Contract

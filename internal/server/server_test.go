@@ -315,7 +315,7 @@ func TestListenAndServePortConflict(t *testing.T) {
 	defer lis.Close()
 
 	port := lis.Addr().(*net.TCPAddr).Port
-	err = ListenAndServe(fmt.Sprintf("%d", port), true)
+	err = ListenAndServe(fmt.Sprintf("tcp://:%d", port), true)
 	if err == nil {
 		t.Fatal("expected error for port conflict")
 	}
