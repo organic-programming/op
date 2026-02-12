@@ -1,3 +1,20 @@
+---
+# Cartouche v1
+title: "OP — The Organic Programming CLI"
+author:
+  name: "B. ALTER"
+  copyright: "© 2026 Benoit Pereira da Silva"
+created: 2026-02-12
+revised: 2026-02-12
+lang: en-US
+origin_lang: en-US
+translation_of: null
+translator: null
+access:
+  humans: true
+  agents: false
+status: draft
+---
 # OP — The Organic Programming CLI
 
 > *"One command, every holon."*
