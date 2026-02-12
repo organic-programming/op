@@ -1,3 +1,5 @@
+github.com/Organic-Programming/go-holons v0.1.0 h1:PotC1POnoL6DQh7usZ9cBed7/7DsKWIPhar09efyixQ=
+github.com/Organic-Programming/go-holons v0.1.0/go.mod h1:ic6lS8kzFAIZBvBSZOHrU/RTfwt3dnOujM6qQt3Pr5k=
 github.com/Organic-Programming/sophia-who v0.1.0 h1:PzglgEnSojtX/lMKAOXmOwFUZVGd2GDk4+xikek6U8s=
 github.com/Organic-Programming/sophia-who v0.1.0/go.mod h1:M+pX/vmvZjWRaTQpQWwmffFZ5At4uwAh8Ksy8gSNoOA=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=

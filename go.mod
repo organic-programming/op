@@ -3,6 +3,7 @@ module github.com/Organic-Programming/op
 go 1.25.1
 
 require (
+	github.com/Organic-Programming/go-holons v0.1.0
 	github.com/Organic-Programming/sophia-who v0.1.0
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
