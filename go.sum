@@ -1,5 +1,5 @@
-github.com/Organic-Programming/go-holons v0.1.0 h1:PotC1POnoL6DQh7usZ9cBed7/7DsKWIPhar09efyixQ=
-github.com/Organic-Programming/go-holons v0.1.0/go.mod h1:ic6lS8kzFAIZBvBSZOHrU/RTfwt3dnOujM6qQt3Pr5k=
+github.com/Organic-Programming/go-holons v0.2.0 h1:PWqDahomT8NPRXJqVCXABBoGwiksNQOnH1Scgl+MiUo=
+github.com/Organic-Programming/go-holons v0.2.0/go.mod h1:qR+Hlh0JeWFlpO1iU65p1oeDo9kPEdT6z6O3KaINrl0=
 github.com/Organic-Programming/sophia-who v0.1.0 h1:PzglgEnSojtX/lMKAOXmOwFUZVGd2GDk4+xikek6U8s=
 github.com/Organic-Programming/sophia-who v0.1.0/go.mod h1:M+pX/vmvZjWRaTQpQWwmffFZ5At4uwAh8Ksy8gSNoOA=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
@@ -42,3 +42,5 @@ gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+nhooyr.io/websocket v1.8.17 h1:KEVeLJkUywCKVsnLIDlD/5gtayKp8VoCkksHCGGfT9Y=
+nhooyr.io/websocket v1.8.17/go.mod h1:rN9OFWIUwuxg4fR5tELlYC04bXYowCP9GX47ivo2l+c=
