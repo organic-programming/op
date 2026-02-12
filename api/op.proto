@@ -1,0 +1,144 @@
+// Organic Programming — OP Service Contract
+//
+// OP is the unified entry point to the Organic Programming ecosystem.
+// It discovers holons, dispatches commands, and promotes Sophia's
+// identity verbs for convenience.
+
+syntax = "proto3";
+
+package holon.op;
+
+option go_package = "github.com/Organic-Programming/op/proto";
+
+// OPService is the unified Organic Programming dispatcher.
+service OPService {
+  // --- OP's own RPCs ---
+
+  // Discover scans for all known holons (local and cached).
+  rpc Discover (DiscoverRequest) returns (DiscoverResponse);
+
+  // Invoke dispatches a command to a holon by name.
+  rpc Invoke (InvokeRequest) returns (InvokeResponse);
+
+  // --- Promoted from Sophia Who? (identity management) ---
+
+  // CreateIdentity creates a new holon identity.
+  rpc CreateIdentity (CreateIdentityRequest) returns (CreateIdentityResponse);
+
+  // ListIdentities lists all known holon identities.
+  rpc ListIdentities (ListIdentitiesRequest) returns (ListIdentitiesResponse);
+
+  // ShowIdentity retrieves a holon's identity by UUID.
+  rpc ShowIdentity (ShowIdentityRequest) returns (ShowIdentityResponse);
+
+  // PinVersion pins version metadata to a holon.
+  rpc PinVersion (PinVersionRequest) returns (PinVersionResponse);
+}
+
+// --- Discover ---
+
+message DiscoverRequest {
+  string root_dir = 1;  // Directory to scan. Default: current dir.
+}
+
+message DiscoverResponse {
+  repeated HolonEntry entries = 1;
+  repeated string path_binaries = 2;  // Holon binaries found in $PATH.
+}
+
+message HolonEntry {
+  HolonIdentity identity = 1;
+  string origin = 2;  // "local" or "cached"
+}
+
+// --- Invoke ---
+
+message InvokeRequest {
+  string holon = 1;            // Holon name or alias (e.g. "who", "atlas").
+  repeated string args = 2;    // Arguments to pass to the holon.
+}
+
+message InvokeResponse {
+  int32 exit_code = 1;
+  string stdout = 2;
+  string stderr = 3;
+}
+
+// --- Identity (promoted from Sophia) ---
+
+message CreateIdentityRequest {
+  string given_name = 1;
+  string family_name = 2;
+  string motto = 3;
+  string composer = 4;
+  string clade = 5;
+  string lang = 6;
+  repeated string aliases = 7;
+  string wrapped_license = 8;
+  string reproduction = 9;
+  string output_dir = 10;
+}
+
+message CreateIdentityResponse {
+  HolonIdentity identity = 1;
+  string file_path = 2;
+}
+
+message ListIdentitiesRequest {
+  string root_dir = 1;
+}
+
+message ListIdentitiesResponse {
+  repeated HolonEntry entries = 1;
+}
+
+message ShowIdentityRequest {
+  string uuid = 1;
+}
+
+message ShowIdentityResponse {
+  HolonIdentity identity = 1;
+  string file_path = 2;
+  string raw_content = 3;
+}
+
+message PinVersionRequest {
+  string uuid = 1;
+  string binary_path = 2;
+  string binary_version = 3;
+  string git_tag = 4;
+  string git_commit = 5;
+  string os = 6;
+  string arch = 7;
+}
+
+message PinVersionResponse {
+  HolonIdentity identity = 1;
+}
+
+// --- Shared messages ---
+
+message HolonIdentity {
+  string uuid = 1;
+  string given_name = 2;
+  string family_name = 3;
+  string motto = 4;
+  string composer = 5;
+  string clade = 6;
+  string status = 7;
+  string born = 8;
+  repeated string parents = 9;
+  string reproduction = 10;
+  string binary_path = 11;
+  string binary_version = 12;
+  string git_tag = 13;
+  string git_commit = 14;
+  string os = 15;
+  string arch = 16;
+  repeated string dependencies = 17;
+  repeated string aliases = 18;
+  string wrapped_license = 19;
+  string generated_by = 20;
+  string lang = 21;
+  string proto_status = 22;
+}

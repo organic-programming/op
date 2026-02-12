@@ -9,26 +9,25 @@ commands to them through a single interface.
 ## Usage
 
 ```
-# Promoted verbs (delegate to Sophia Who?)
+# Promoted verbs (use Sophia's API directly — no subprocess)
 op new                               → create a new holon identity
 op list                              → list all known holons
 op show <uuid>                       → display a holon's identity
+op pin <uuid> --version 1.0.0        → capture version/commit/arch
 
-# Full namespace (dispatch to any holon)
-op who new                           → same as op new
+# Full namespace (dispatch to any holon binary)
+op who list                          → same as op list
 op atlas pull                        → rhizome-atlas
 op translate file.md --to fr         → babel-fish-translator
 
-# Remote invocation
-op @remote:8080 whisper transcribe   → gRPC call
-
 # OP's own commands
 op discover                          → list all available holons
+op version                           → show op version
 ```
 
 ## Status
 
-Identity defined. Code not yet implemented.
+v0.1.0 — promoted verbs, discover, namespace dispatch.
 
 ## Organic Programming
 

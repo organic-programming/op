@@ -1,0 +1,14 @@
+# Binary
+op
+
+# Generated protobuf/gRPC stubs (derived from .proto)
+proto/
+
+# Go build cache
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
