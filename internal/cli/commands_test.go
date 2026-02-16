@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Organic-Programming/sophia-who/pkg/identity"
+	"github.com/organic-programming/sophia-who/pkg/identity"
 )
 
 // seedHolon creates a HOLON.md in a temp subdirectory for testing.

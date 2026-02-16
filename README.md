@@ -48,10 +48,10 @@ v0.1.0 — promoted verbs, discover, namespace dispatch.
 
 ## Organic Programming
 
-This holon is part of the [Organic Programming](https://github.com/Organic-Programming/seed)
+This holon is part of the [Organic Programming](https://github.com/organic-programming/seed)
 ecosystem. For context, see:
 
-- [Constitution](https://github.com/Organic-Programming/seed/blob/master/AGENT.md) — what a holon is
-- [Methodology](https://github.com/Organic-Programming/seed/blob/master/METHODOLOGY.md) — how to develop with holons
-- [Terminology](https://github.com/Organic-Programming/seed/blob/master/TERMINOLOGY.md) — glossary of all terms
-- [Contributing](https://github.com/Organic-Programming/seed/blob/master/CONTRIBUTING.md) — governance and standards
+- [Constitution](https://github.com/organic-programming/seed/blob/master/AGENT.md) — what a holon is
+- [Methodology](https://github.com/organic-programming/seed/blob/master/METHODOLOGY.md) — how to develop with holons
+- [Terminology](https://github.com/organic-programming/seed/blob/master/TERMINOLOGY.md) — glossary of all terms
+- [Contributing](https://github.com/organic-programming/seed/blob/master/CONTRIBUTING.md) — governance and standards

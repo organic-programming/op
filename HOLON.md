@@ -122,7 +122,7 @@ verbs. No subprocess, no gRPC, no overhead. This is possible because
 both OP and Sophia are written in Go.
 
 ```go
-import "github.com/Organic-Programming/sophia-who/pkg/identity"
+import "github.com/organic-programming/sophia-who/pkg/identity"
 
 holons, _ := identity.FindAll(".")
 ```

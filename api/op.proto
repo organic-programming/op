@@ -8,7 +8,7 @@ syntax = "proto3";
 
 package holon.op;
 
-option go_package = "github.com/Organic-Programming/op/proto";
+option go_package = "github.com/organic-programming/op/proto";
 
 // OPService is the unified Organic Programming dispatcher.
 service OPService {

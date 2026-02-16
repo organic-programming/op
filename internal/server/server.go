@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Organic-Programming/go-holons/pkg/transport"
-	"github.com/Organic-Programming/sophia-who/pkg/identity"
+	"github.com/organic-programming/go-holons/pkg/transport"
+	"github.com/organic-programming/sophia-who/pkg/identity"
 
-	pb "github.com/Organic-Programming/op/proto"
+	pb "github.com/organic-programming/op/proto"
 
 	"google.golang.org/grpc"
 	grpcReflection "google.golang.org/grpc/reflection"

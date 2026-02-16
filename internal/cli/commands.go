@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Organic-Programming/op/internal/grpcclient"
-	"github.com/Organic-Programming/op/internal/server"
-	"github.com/Organic-Programming/sophia-who/pkg/identity"
+	"github.com/organic-programming/op/internal/grpcclient"
+	"github.com/organic-programming/op/internal/server"
+	"github.com/organic-programming/sophia-who/pkg/identity"
 )
 
 // Run dispatches the command and returns an exit code.
