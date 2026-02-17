@@ -1,8 +1,8 @@
 ---
 # Holon Identity v1
 uuid: "28f22ab5-c62d-41f8-9ada-e34333060ff9"
-given_name: "OP"
-family_name: "CLI"
+given_name: Grace
+family_name: OP
 motto: "One command, every holon."
 composer: "B. ALTER"
 clade: "deterministic/stateful"
