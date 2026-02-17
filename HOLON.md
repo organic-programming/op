@@ -203,7 +203,7 @@ op help                                  this message
 
 ## Contract
 
-- Proto file: `api/op.proto`
+- Proto file: `protos/op/v1/op.proto`
 - Service: `OPService`
 - RPCs: `Discover`, `Invoke`, `CreateIdentity`, `ListIdentities`,
   `ShowIdentity`, `PinVersion`

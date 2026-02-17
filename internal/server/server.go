@@ -14,7 +14,7 @@ import (
 	"github.com/organic-programming/go-holons/pkg/transport"
 	"github.com/organic-programming/sophia-who/pkg/identity"
 
-	pb "github.com/organic-programming/grace-op/proto"
+	pb "github.com/organic-programming/grace-op/gen/go/op/v1"
 
 	"google.golang.org/grpc"
 	grpcReflection "google.golang.org/grpc/reflection"

@@ -6,9 +6,9 @@
 
 syntax = "proto3";
 
-package holon.op;
+package op.v1;
 
-option go_package = "github.com/organic-programming/grace-op/proto";
+option go_package = "github.com/organic-programming/grace-op/gen/go/op/v1;opv1";
 
 // OPService is the unified Organic Programming dispatcher.
 service OPService {

@@ -11,8 +11,8 @@ import (
 	"github.com/organic-programming/go-holons/pkg/transport"
 	"github.com/organic-programming/sophia-who/pkg/identity"
 
+	pb "github.com/organic-programming/grace-op/gen/go/op/v1"
 	"github.com/organic-programming/grace-op/internal/grpcclient"
-	pb "github.com/organic-programming/grace-op/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
