@@ -35,7 +35,7 @@ op pin <uuid> --version 1.0.0        → capture version/commit/arch
 # Full namespace (dispatch to any holon binary)
 op who list                          → same as op list
 op atlas pull                        → rhizome-atlas
-op translate file.md --to fr         → babel-fish-translator
+op translate file.md --to fr         → abel-fishel-translator
 
 # OP's own commands
 op discover                          → list all available holons
