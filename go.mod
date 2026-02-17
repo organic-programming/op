@@ -1,4 +1,4 @@
-module github.com/organic-programming/op
+module github.com/organic-programming/grace-op
 
 go 1.25.1
 

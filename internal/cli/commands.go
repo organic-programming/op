@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/organic-programming/op/internal/grpcclient"
-	"github.com/organic-programming/op/internal/server"
+	"github.com/organic-programming/grace-op/internal/grpcclient"
+	"github.com/organic-programming/grace-op/internal/server"
 	"github.com/organic-programming/sophia-who/pkg/identity"
 )
 
