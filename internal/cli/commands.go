@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ func Run(args []string, version string) int {
 	case "new":
 		return cmdNew(rest)
 	case "list":
-		return cmdList()
+		return cmdList(rest)
 	case "show":
 		return cmdShow(rest)
 	case "pin":
@@ -65,7 +66,7 @@ func PrintUsage() {
 
 Promoted verbs (Sophia Who?):
   op new                                 create a new holon identity
-  op list                                list all known holons
+  op list [root]                         list all known holons in root
   op show <uuid>                         display a holon's identity
   op pin <uuid>                          capture version/commit/arch
 
@@ -122,30 +123,109 @@ func cmdNew(args []string) int {
 	return 0
 }
 
-func cmdList() int {
-	holons, err := identity.FindAll(".")
+func cmdList(args []string) int {
+	root, err := parseListRoot(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "op: %v\n", err)
+		fmt.Fprintf(os.Stderr, "op list: %v\n", err)
 		return 1
 	}
 
-	if len(holons) == 0 {
+	entries, err := listHolons(root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op list: %v\n", err)
+		return 1
+	}
+
+	if len(entries) == 0 {
 		fmt.Println("No holons found.")
 		return 0
 	}
 
-	// Header
-	fmt.Printf("%-38s %-20s %-26s %s\n", "UUID", "NAME", "CLADE", "STATUS")
-	fmt.Println(strings.Repeat("─", 100))
+	fmt.Printf("%-38s %-33s %-8s %-25s %-8s %s\n", "UUID", "NAME", "ORIGIN", "CLADE", "STATUS", "PATH")
+	fmt.Println(strings.Repeat("─", 150))
 
-	for _, h := range holons {
-		name := h.GivenName
-		if h.FamilyName != "" {
-			name += " " + h.FamilyName
+	for _, e := range entries {
+		name := e.id.GivenName
+		if e.id.FamilyName != "" {
+			name += " " + e.id.FamilyName
 		}
-		fmt.Printf("%-38s %-20s %-26s %s\n", h.UUID, name, h.Clade, h.Status)
+		fmt.Printf("%-38s %-33s %-8s %-25s %-8s %s\n", e.id.UUID, name, e.origin, e.id.Clade, e.id.Status, e.path)
 	}
+
 	return 0
+}
+
+type listedHolon struct {
+	id     identity.Identity
+	origin string
+	path   string
+}
+
+func parseListRoot(args []string) (string, error) {
+	switch len(args) {
+	case 0:
+		return ".", nil
+	case 1:
+		return args[0], nil
+	default:
+		return "", fmt.Errorf("usage: op list [root]")
+	}
+}
+
+func listHolons(root string) ([]listedHolon, error) {
+	root = filepath.Clean(root)
+	var entries []listedHolon
+	seen := map[string]struct{}{}
+
+	add := func(scanRoot, origin string, strict bool) error {
+		holons, err := identity.FindAllWithPaths(scanRoot)
+		if err != nil {
+			if strict {
+				return err
+			}
+			return nil
+		}
+		for _, h := range holons {
+			key := h.Identity.UUID
+			if key == "" {
+				key = h.Path
+			}
+			if _, duplicate := seen[key]; duplicate {
+				continue
+			}
+			entries = append(entries, listedHolon{
+				id:     h.Identity,
+				origin: origin,
+				path:   relHolonDir(root, h.Path),
+			})
+			seen[key] = struct{}{}
+		}
+		return nil
+	}
+
+	// Prioritize conventional local holons folder if present.
+	if err := add(filepath.Join(root, "holons"), "local", false); err != nil {
+		return nil, err
+	}
+	// Then scan root recursively (standalone projects, examples, etc.).
+	if err := add(root, "local", true); err != nil {
+		return nil, err
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].path < entries[j].path
+	})
+
+	return entries, nil
+}
+
+func relHolonDir(root, holonPath string) string {
+	dir := filepath.Dir(holonPath)
+	rel, err := filepath.Rel(root, dir)
+	if err != nil {
+		return filepath.Clean(dir)
+	}
+	return filepath.Clean(rel)
 }
 
 func cmdShow(args []string) int {
