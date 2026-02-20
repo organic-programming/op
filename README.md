@@ -26,7 +26,7 @@ commands to them through a single interface.
 ## Usage
 
 ```
-# Promoted verbs (use Sophia's API directly — no subprocess)
+# Promoted verbs (delegated to Sophia Who? binary)
 op new                               → create a new holon identity
 op list                              → list all known holons
 op show <uuid>                       → display a holon's identity

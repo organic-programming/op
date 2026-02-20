@@ -115,11 +115,12 @@ What happens:
 op grpc://localhost:9090
 ```
 
-### 3. API facet — Go import (in-process)
+### 3. Identity library reuse (in-process)
 
-OP uses Sophia's `pkg/identity` as a direct Go import for the promoted
-verbs. No subprocess, no gRPC, no overhead. This is possible because
-both OP and Sophia are written in Go.
+OP still imports Sophia's `pkg/identity` for internal identity-aware
+features (such as local discovery), but promoted verbs are delegated to
+the `who` binary to preserve exact provider behavior (streaming, output
+format, and flag semantics).
 
 ```go
 import "github.com/organic-programming/sophia-who/pkg/identity"
@@ -156,7 +157,7 @@ contract (`.proto`) defines WHAT; the transport URI defines HOW.
 ## Promoted verbs
 
 Some holon commands are so fundamental they become top-level verbs.
-These delegate to Sophia Who? via the API facet (no subprocess):
+These delegate to Sophia Who? via subprocess dispatch to `who`:
 
 ```
 op new                               → creates a new holon identity
@@ -180,7 +181,7 @@ op discover                          → list all available holons
 ## Commands summary
 
 ```
-# Promoted verbs (API facet → Sophia)
+# Promoted verbs (delegated CLI facet → who)
 op new / list / show / pin
 
 # CLI facet (subprocess)

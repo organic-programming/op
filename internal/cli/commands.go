@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -17,21 +16,39 @@ import (
 	"github.com/organic-programming/sophia-who/pkg/identity"
 )
 
+type promotedRoute struct {
+	holon   string
+	command string
+}
+
+// promotedRoutes maps OP top-level verbs to their provider holon command.
+// Routing through the provider binary guarantees behavior parity (streaming,
+// formatting, and flags) without re-implementing provider logic in OP.
+var promotedRoutes = map[string]promotedRoute{
+	"new":  {holon: "who", command: "new"},
+	"list": {holon: "who", command: "list"},
+	"show": {holon: "who", command: "show"},
+	"pin":  {holon: "who", command: "pin"},
+}
+
+// dispatchPromoted is injectable for tests.
+var dispatchPromoted = cmdDispatch
+
 // Run dispatches the command and returns an exit code.
 func Run(args []string, version string) int {
 	cmd := args[0]
 	rest := args[1:]
 
 	switch cmd {
-	// --- Promoted verbs (delegate to Sophia's API) ---
+	// --- Promoted verbs (delegate to provider holon binary) ---
 	case "new":
-		return cmdNew(rest)
+		return runPromoted("new", rest)
 	case "list":
-		return cmdList(rest)
+		return runPromoted("list", rest)
 	case "show":
-		return cmdShow(rest)
+		return runPromoted("show", rest)
 	case "pin":
-		return cmdPin(rest)
+		return runPromoted("pin", rest)
 
 	// --- OP's own commands ---
 	case "run":
@@ -60,6 +77,19 @@ func Run(args []string, version string) int {
 	}
 }
 
+func runPromoted(verb string, args []string) int {
+	route, ok := promotedRoutes[verb]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "op: unknown promoted verb %q\n", verb)
+		return 1
+	}
+
+	providerArgs := make([]string, 0, 1+len(args))
+	providerArgs = append(providerArgs, route.command)
+	providerArgs = append(providerArgs, args...)
+	return dispatchPromoted(route.holon, providerArgs)
+}
+
 // PrintUsage displays the help text.
 func PrintUsage() {
 	fmt.Print(`op — the Organic Programming CLI
@@ -85,245 +115,6 @@ OP commands:
   op version                             show op version
   op help                                this message
 `)
-}
-
-// --- Promoted verbs (use Sophia's pkg/identity directly) ---
-
-func cmdNew(args []string) int {
-	id := identity.New()
-
-	// Interactive-style: read from flags or prompt
-	id.GivenName = flagOrPrompt(args, "--name", "Given name: ")
-	id.FamilyName = flagOrPrompt(args, "--family", "Family name: ")
-	id.Motto = flagOrPrompt(args, "--motto", "Motto: ")
-	id.Composer = flagOrPrompt(args, "--composer", "Composer: ")
-	id.Clade = flagOrDefault(args, "--clade", "deterministic/pure")
-	id.Lang = flagOrDefault(args, "--lang", "go")
-
-	// Build output directory name from the holon name
-	dirName := strings.ToLower(id.GivenName + "-" + strings.TrimSuffix(id.FamilyName, "?"))
-	dirName = strings.ReplaceAll(dirName, " ", "-")
-	outputDir := flagOrDefault(args, "--output", dirName)
-
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "op: cannot create directory: %v\n", err)
-		return 1
-	}
-
-	outputPath := filepath.Join(outputDir, "HOLON.md")
-	if err := identity.WriteHolonMD(id, outputPath); err != nil {
-		fmt.Fprintf(os.Stderr, "op: %v\n", err)
-		return 1
-	}
-
-	fmt.Printf("Created %s\n", outputPath)
-	fmt.Printf("  UUID:  %s\n", id.UUID)
-	fmt.Printf("  Name:  %s %s\n", id.GivenName, id.FamilyName)
-	fmt.Printf("  Motto: %s\n", id.Motto)
-	return 0
-}
-
-func cmdList(args []string) int {
-	root, err := parseListRoot(args)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op list: %v\n", err)
-		return 1
-	}
-
-	entries, err := listHolons(root)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op list: %v\n", err)
-		return 1
-	}
-
-	if len(entries) == 0 {
-		fmt.Println("No holons found.")
-		return 0
-	}
-
-	fmt.Printf("%-38s %-33s %-8s %-25s %-8s %s\n", "UUID", "NAME", "ORIGIN", "CLADE", "STATUS", "PATH")
-	fmt.Println(strings.Repeat("─", 150))
-
-	for _, e := range entries {
-		name := e.id.GivenName
-		if e.id.FamilyName != "" {
-			name += " " + e.id.FamilyName
-		}
-		fmt.Printf("%-38s %-33s %-8s %-25s %-8s %s\n", e.id.UUID, name, e.origin, e.id.Clade, e.id.Status, e.path)
-	}
-
-	return 0
-}
-
-type listedHolon struct {
-	id     identity.Identity
-	origin string
-	path   string
-}
-
-func parseListRoot(args []string) (string, error) {
-	switch len(args) {
-	case 0:
-		return ".", nil
-	case 1:
-		return args[0], nil
-	default:
-		return "", fmt.Errorf("usage: op list [root]")
-	}
-}
-
-func listHolons(root string) ([]listedHolon, error) {
-	root = filepath.Clean(root)
-	var entries []listedHolon
-	seen := map[string]struct{}{}
-
-	add := func(scanRoot, origin string, strict bool) error {
-		holons, err := identity.FindAllWithPaths(scanRoot)
-		if err != nil {
-			if strict {
-				return err
-			}
-			return nil
-		}
-		for _, h := range holons {
-			key := h.Identity.UUID
-			if key == "" {
-				key = h.Path
-			}
-			if _, duplicate := seen[key]; duplicate {
-				continue
-			}
-			entries = append(entries, listedHolon{
-				id:     h.Identity,
-				origin: origin,
-				path:   relHolonDir(root, h.Path),
-			})
-			seen[key] = struct{}{}
-		}
-		return nil
-	}
-
-	// Prioritize conventional local holons folder if present.
-	if err := add(filepath.Join(root, "holons"), "local", false); err != nil {
-		return nil, err
-	}
-	// Then scan root recursively (standalone projects, examples, etc.).
-	if err := add(root, "local", true); err != nil {
-		return nil, err
-	}
-
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].path < entries[j].path
-	})
-
-	return entries, nil
-}
-
-func relHolonDir(root, holonPath string) string {
-	dir := filepath.Dir(holonPath)
-	rel, err := filepath.Rel(root, dir)
-	if err != nil {
-		return filepath.Clean(dir)
-	}
-	return filepath.Clean(rel)
-}
-
-func cmdShow(args []string) int {
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "op show: UUID required")
-		return 1
-	}
-
-	path, err := identity.FindByUUID(".", args[0])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op show: %v\n", err)
-		return 1
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op show: %v\n", err)
-		return 1
-	}
-
-	id, _, err := identity.ParseFrontmatter(data)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op show: %v\n", err)
-		return 1
-	}
-
-	fmt.Printf("UUID:          %s\n", id.UUID)
-	fmt.Printf("Name:          %s %s\n", id.GivenName, id.FamilyName)
-	fmt.Printf("Motto:         %s\n", id.Motto)
-	fmt.Printf("Composer:      %s\n", id.Composer)
-	fmt.Printf("Clade:         %s\n", id.Clade)
-	fmt.Printf("Status:        %s\n", id.Status)
-	fmt.Printf("Born:          %s\n", id.Born)
-	fmt.Printf("Lang:          %s\n", id.Lang)
-	fmt.Printf("File:          %s\n", path)
-	if id.BinaryVersion != "" {
-		fmt.Printf("Version:       %s\n", id.BinaryVersion)
-	}
-	if id.GitTag != "" {
-		fmt.Printf("Git tag:       %s\n", id.GitTag)
-	}
-	if id.GitCommit != "" {
-		fmt.Printf("Git commit:    %s\n", id.GitCommit)
-	}
-	if len(id.Parents) > 0 {
-		fmt.Printf("Parents:       %s\n", strings.Join(id.Parents, ", "))
-	}
-	return 0
-}
-
-func cmdPin(args []string) int {
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "op pin: UUID required")
-		return 1
-	}
-
-	path, err := identity.FindByUUID(".", args[0])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op pin: %v\n", err)
-		return 1
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op pin: %v\n", err)
-		return 1
-	}
-
-	id, _, err := identity.ParseFrontmatter(data)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op pin: %v\n", err)
-		return 1
-	}
-
-	// Update pin fields from flags
-	if v := flagValue(args[1:], "--version"); v != "" {
-		id.BinaryVersion = v
-	}
-	if v := flagValue(args[1:], "--tag"); v != "" {
-		id.GitTag = v
-	}
-	if v := flagValue(args[1:], "--commit"); v != "" {
-		id.GitCommit = v
-	}
-	if v := flagValue(args[1:], "--os"); v != "" {
-		id.OS = v
-	}
-	if v := flagValue(args[1:], "--arch"); v != "" {
-		id.Arch = v
-	}
-
-	if err := identity.WriteHolonMD(id, path); err != nil {
-		fmt.Fprintf(os.Stderr, "op pin: %v\n", err)
-		return 1
-	}
-
-	fmt.Printf("Pinned %s %s → %s\n", id.GivenName, id.FamilyName, path)
-	return 0
 }
 
 // --- OP's own commands ---
@@ -704,15 +495,4 @@ func flagOrDefault(args []string, key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
-}
-
-// flagOrPrompt returns the flag value if present, else prompts the user.
-func flagOrPrompt(args []string, key, prompt string) string {
-	if v := flagValue(args, key); v != "" {
-		return v
-	}
-	fmt.Print(prompt)
-	var input string
-	fmt.Scanln(&input)
-	return input
 }

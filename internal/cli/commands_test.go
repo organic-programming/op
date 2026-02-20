@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/organic-programming/sophia-who/pkg/identity"
@@ -48,172 +49,73 @@ func TestHelpCommand(t *testing.T) {
 	}
 }
 
-func TestListEmpty(t *testing.T) {
-	root := t.TempDir()
-	original, _ := os.Getwd()
-	defer os.Chdir(original) //nolint:errcheck
+func TestPromotedVerbsDelegateToWho(t *testing.T) {
+	type call struct {
+		holon string
+		args  []string
+	}
+	var calls []call
 
-	if err := os.Chdir(root); err != nil {
-		t.Fatal(err)
+	originalDispatch := dispatchPromoted
+	dispatchPromoted = func(holon string, args []string) int {
+		calls = append(calls, call{holon: holon, args: append([]string(nil), args...)})
+		return 0
+	}
+	defer func() { dispatchPromoted = originalDispatch }()
+
+	tests := []struct {
+		name      string
+		input     []string
+		wantHolon string
+		wantArgs  []string
+	}{
+		{
+			name:      "new",
+			input:     []string{"new", "--name", "Alpha"},
+			wantHolon: "who",
+			wantArgs:  []string{"new", "--name", "Alpha"},
+		},
+		{
+			name:      "list",
+			input:     []string{"list", "/tmp/project"},
+			wantHolon: "who",
+			wantArgs:  []string{"list", "/tmp/project"},
+		},
+		{
+			name:      "show",
+			input:     []string{"show", "abcd"},
+			wantHolon: "who",
+			wantArgs:  []string{"show", "abcd"},
+		},
+		{
+			name:      "pin",
+			input:     []string{"pin", "abcd", "--version", "1.0.0"},
+			wantHolon: "who",
+			wantArgs:  []string{"pin", "abcd", "--version", "1.0.0"},
+		},
 	}
 
-	code := Run([]string{"list"}, "0.1.0-test")
-	if code != 0 {
-		t.Errorf("list (empty) returned %d, want 0", code)
-	}
-}
-
-func TestListWithHolons(t *testing.T) {
-	root := t.TempDir()
-	seedHolon(t, root, "list-uuid-1", "Alpha")
-	seedHolon(t, root, "list-uuid-2", "Beta")
-
-	original, _ := os.Getwd()
-	defer os.Chdir(original) //nolint:errcheck
-
-	if err := os.Chdir(root); err != nil {
-		t.Fatal(err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			code := Run(tc.input, "0.1.0-test")
+			if code != 0 {
+				t.Fatalf("Run returned %d, want 0", code)
+			}
+		})
 	}
 
-	code := Run([]string{"list"}, "0.1.0-test")
-	if code != 0 {
-		t.Errorf("list returned %d, want 0", code)
-	}
-}
-
-func TestShowMissingUUID(t *testing.T) {
-	code := Run([]string{"show"}, "0.1.0-test")
-	if code != 1 {
-		t.Errorf("show (no uuid) returned %d, want 1", code)
-	}
-}
-
-func TestShowValidUUID(t *testing.T) {
-	root := t.TempDir()
-	seedHolon(t, root, "show-uuid-42", "Gamma")
-
-	original, _ := os.Getwd()
-	defer os.Chdir(original) //nolint:errcheck
-
-	if err := os.Chdir(root); err != nil {
-		t.Fatal(err)
+	if len(calls) != len(tests) {
+		t.Fatalf("dispatch called %d times, want %d", len(calls), len(tests))
 	}
 
-	code := Run([]string{"show", "show-uuid-42"}, "0.1.0-test")
-	if code != 0 {
-		t.Errorf("show returned %d, want 0", code)
-	}
-}
-
-func TestShowNotFound(t *testing.T) {
-	root := t.TempDir()
-
-	original, _ := os.Getwd()
-	defer os.Chdir(original) //nolint:errcheck
-
-	if err := os.Chdir(root); err != nil {
-		t.Fatal(err)
-	}
-
-	code := Run([]string{"show", "nonexistent"}, "0.1.0-test")
-	if code != 1 {
-		t.Errorf("show (not found) returned %d, want 1", code)
-	}
-}
-
-func TestNewWithFlags(t *testing.T) {
-	root := t.TempDir()
-
-	original, _ := os.Getwd()
-	defer os.Chdir(original) //nolint:errcheck
-
-	if err := os.Chdir(root); err != nil {
-		t.Fatal(err)
-	}
-
-	code := Run([]string{
-		"new",
-		"--name", "TestHolon",
-		"--family", "CLI",
-		"--motto", "Testing OP.",
-		"--composer", "Test Suite",
-		"--output", filepath.Join(root, "test-holon"),
-	}, "0.1.0-test")
-
-	if code != 0 {
-		t.Fatalf("new returned %d, want 0", code)
-	}
-
-	// Verify the file was created
-	holonPath := filepath.Join(root, "test-holon", "HOLON.md")
-	if _, err := os.Stat(holonPath); err != nil {
-		t.Errorf("HOLON.md not created: %v", err)
-	}
-
-	// Verify it's parseable
-	data, err := os.ReadFile(holonPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	id, _, err := identity.ParseFrontmatter(data)
-	if err != nil {
-		t.Fatalf("created HOLON.md not parseable: %v", err)
-	}
-	if id.GivenName != "TestHolon" {
-		t.Errorf("GivenName = %q, want %q", id.GivenName, "TestHolon")
-	}
-	if id.FamilyName != "CLI" {
-		t.Errorf("FamilyName = %q, want %q", id.FamilyName, "CLI")
-	}
-}
-
-func TestPinMissingUUID(t *testing.T) {
-	code := Run([]string{"pin"}, "0.1.0-test")
-	if code != 1 {
-		t.Errorf("pin (no uuid) returned %d, want 1", code)
-	}
-}
-
-func TestPinWithFlags(t *testing.T) {
-	root := t.TempDir()
-	seedHolon(t, root, "pin-uuid-99", "Delta")
-
-	original, _ := os.Getwd()
-	defer os.Chdir(original) //nolint:errcheck
-
-	if err := os.Chdir(root); err != nil {
-		t.Fatal(err)
-	}
-
-	code := Run([]string{
-		"pin", "pin-uuid-99",
-		"--version", "1.0.0",
-		"--tag", "v1.0.0",
-		"--commit", "abc123",
-	}, "0.1.0-test")
-
-	if code != 0 {
-		t.Fatalf("pin returned %d, want 0", code)
-	}
-
-	// Verify the pin was written
-	path, err := identity.FindByUUID(root, "pin-uuid-99")
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	id, _, err := identity.ParseFrontmatter(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if id.BinaryVersion != "1.0.0" {
-		t.Errorf("BinaryVersion = %q, want %q", id.BinaryVersion, "1.0.0")
-	}
-	if id.GitTag != "v1.0.0" {
-		t.Errorf("GitTag = %q, want %q", id.GitTag, "v1.0.0")
+	for i, tc := range tests {
+		got := calls[i]
+		if got.holon != tc.wantHolon {
+			t.Fatalf("call %d holon = %q, want %q", i, got.holon, tc.wantHolon)
+		}
+		if !reflect.DeepEqual(got.args, tc.wantArgs) {
+			t.Fatalf("call %d args = %#v, want %#v", i, got.args, tc.wantArgs)
+		}
 	}
 }
 
