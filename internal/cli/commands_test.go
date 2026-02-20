@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/organic-programming/sophia-who/pkg/identity"
@@ -136,18 +140,91 @@ func TestMapHolonCommandToRPC(t *testing.T) {
 
 func TestDiscoverCommand(t *testing.T) {
 	root := t.TempDir()
-	seedHolon(t, root, "disc-uuid", "Echo")
+	chdirForTest(t, root)
+	seedTransportHolon(t, root, "who", "go")
+	seedTransportHolon(t, root, "atlas", "rust")
 
-	original, _ := os.Getwd()
-	defer os.Chdir(original) //nolint:errcheck
+	output := captureStdout(t, func() {
+		code := Run([]string{"discover"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("discover returned %d, want 0", code)
+		}
+	})
 
-	if err := os.Chdir(root); err != nil {
-		t.Fatal(err)
+	if !strings.Contains(output, "LANG") {
+		t.Fatalf("discover output missing LANG column: %q", output)
+	}
+	if !strings.Contains(output, "who Holon") {
+		t.Fatalf("discover output missing who holon row: %q", output)
+	}
+	if !strings.Contains(output, "atlas Holon") {
+		t.Fatalf("discover output missing atlas holon row: %q", output)
+	}
+	// Verify relative path appears in the who row (tabwriter converts tabs to spaces)
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "who Holon") {
+			if !strings.Contains(line, "who") {
+				t.Fatalf("who row missing relative path: %q", line)
+			}
+			break
+		}
+	}
+	if !strings.Contains(output, "local") {
+		t.Fatalf("discover output missing origin: %q", output)
+	}
+}
+
+func TestDiscoverCommandJSONFormat(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedTransportHolon(t, root, "who", "go")
+	seedTransportHolon(t, root, "atlas", "rust")
+
+	output := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "discover"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("discover --format json returned %d, want 0", code)
+		}
+	})
+
+	var payload struct {
+		Entries []struct {
+			UUID         string `json:"uuid"`
+			GivenName    string `json:"given_name"`
+			FamilyName   string `json:"family_name"`
+			Lang         string `json:"lang"`
+			Clade        string `json:"clade"`
+			Status       string `json:"status"`
+			RelativePath string `json:"relative_path"`
+			Origin       string `json:"origin"`
+		} `json:"entries"`
+		PathBinaries []string `json:"path_binaries"`
+	}
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("discover json output is invalid: %v\noutput=%s", err, output)
+	}
+	if len(payload.Entries) < 2 {
+		t.Fatalf("entries = %d, want at least 2", len(payload.Entries))
 	}
 
-	code := Run([]string{"discover"}, "0.1.0-test")
-	if code != 0 {
-		t.Errorf("discover returned %d, want 0", code)
+	foundWho := false
+	for _, entry := range payload.Entries {
+		if entry.GivenName != "who" {
+			continue
+		}
+		foundWho = true
+		if entry.Lang != "go" {
+			t.Fatalf("who lang = %q, want %q", entry.Lang, "go")
+		}
+		if entry.Origin != "local" {
+			t.Fatalf("who origin = %q, want %q", entry.Origin, "local")
+		}
+		if entry.RelativePath != "who" {
+			t.Fatalf("who relative_path = %q, want %q", entry.RelativePath, "who")
+		}
+	}
+	if !foundWho {
+		t.Fatalf("who entry not found in json output: %s", output)
 	}
 }
 
@@ -268,4 +345,29 @@ func TestParseGlobalFormat(t *testing.T) {
 			}
 		})
 	}
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+
+	origStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create stdout pipe: %v", err)
+	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = origStdout
+		_ = w.Close()
+		_ = r.Close()
+	}()
+
+	fn()
+
+	_ = w.Close()
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("read captured stdout: %v", err)
+	}
+	return buf.String()
 }

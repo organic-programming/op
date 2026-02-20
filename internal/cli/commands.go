@@ -9,7 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/organic-programming/grace-op/internal/grpcclient"
@@ -37,7 +39,7 @@ func Run(args []string, version string) int {
 	case "run":
 		return cmdRun(rest)
 	case "discover":
-		return cmdDiscover()
+		return cmdDiscover(format)
 	case "serve":
 		return cmdServe(rest)
 	case "version":
@@ -92,32 +94,134 @@ OP commands:
 
 // --- OP's own commands ---
 
-func cmdDiscover() int {
-	holons, err := identity.FindAll(".")
-	if err != nil {
+type discoverEntry struct {
+	UUID         string `json:"uuid"`
+	GivenName    string `json:"given_name"`
+	FamilyName   string `json:"family_name"`
+	Lang         string `json:"lang"`
+	Clade        string `json:"clade"`
+	Status       string `json:"status"`
+	RelativePath string `json:"relative_path"`
+	Origin       string `json:"origin"`
+}
+
+type discoverOutput struct {
+	Entries      []discoverEntry `json:"entries"`
+	PathBinaries []string        `json:"path_binaries"`
+}
+
+func cmdDiscover(format Format) int {
+	const scanRoot = "holons"
+
+	var (
+		holons  []identity.Identity
+		located []identity.LocatedIdentity
+	)
+	if _, err := os.Stat(scanRoot); err == nil {
+		var scanErr error
+		holons, scanErr = identity.FindAll(scanRoot)
+		if scanErr != nil {
+			fmt.Fprintf(os.Stderr, "op discover: %v\n", scanErr)
+			return 1
+		}
+		located, scanErr = identity.FindAllWithPaths(scanRoot)
+		if scanErr != nil {
+			fmt.Fprintf(os.Stderr, "op discover: %v\n", scanErr)
+			return 1
+		}
+	} else if !os.IsNotExist(err) {
 		fmt.Fprintf(os.Stderr, "op discover: %v\n", err)
 		return 1
 	}
 
-	fmt.Println("Local holons:")
-	for _, h := range holons {
-		name := h.GivenName
-		if h.FamilyName != "" {
-			name += " " + h.FamilyName
+	relativePathByUUID := make(map[string]string, len(located))
+	for _, h := range located {
+		relDir := filepath.Dir(h.Path)
+		if rel, err := filepath.Rel(scanRoot, relDir); err == nil {
+			relDir = rel
 		}
-		fmt.Printf("  %-20s %s  [%s]\n", name, h.UUID[:8], h.Clade)
+		relativePathByUUID[h.Identity.UUID] = filepath.ToSlash(relDir)
 	}
 
-	// Check $PATH for holon binaries
+	entries := make([]discoverEntry, 0, len(holons))
+	for _, h := range holons {
+		entries = append(entries, discoverEntry{
+			UUID:         h.UUID,
+			GivenName:    h.GivenName,
+			FamilyName:   h.FamilyName,
+			Lang:         h.Lang,
+			Clade:        h.Clade,
+			Status:       h.Status,
+			RelativePath: relativePathByUUID[h.UUID],
+			Origin:       "local",
+		})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		leftName := strings.ToLower(strings.TrimSpace(entries[i].GivenName + " " + entries[i].FamilyName))
+		rightName := strings.ToLower(strings.TrimSpace(entries[j].GivenName + " " + entries[j].FamilyName))
+		if leftName == rightName {
+			return entries[i].UUID < entries[j].UUID
+		}
+		return leftName < rightName
+	})
+
 	pathHolons := discoverInPath()
+	sort.Strings(pathHolons)
+
+	if format == FormatJSON {
+		payload := discoverOutput{
+			Entries:      entries,
+			PathBinaries: pathHolons,
+		}
+		out, err := json.MarshalIndent(payload, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "op discover: %v\n", err)
+			return 1
+		}
+		fmt.Println(string(out))
+		return 0
+	}
+
+	printDiscoverTable(entries, pathHolons)
+	return 0
+}
+
+func printDiscoverTable(entries []discoverEntry, pathHolons []string) {
+	if len(entries) == 0 {
+		fmt.Println("No local holons found in holons/.")
+	} else {
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "NAME\tLANG\tCLADE\tSTATUS\tORIGIN\tREL_PATH\tUUID")
+		for _, entry := range entries {
+			fmt.Fprintf(
+				w,
+				"%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				discoverDisplayName(entry),
+				defaultDash(entry.Lang),
+				defaultDash(entry.Clade),
+				defaultDash(entry.Status),
+				defaultDash(entry.Origin),
+				defaultDash(entry.RelativePath),
+				defaultDash(entry.UUID),
+			)
+		}
+		_ = w.Flush()
+	}
+
 	if len(pathHolons) > 0 {
 		fmt.Println("\nIn $PATH:")
 		for _, name := range pathHolons {
 			fmt.Printf("  %s\n", name)
 		}
 	}
+}
 
-	return 0
+func discoverDisplayName(entry discoverEntry) string {
+	name := strings.TrimSpace(entry.GivenName + " " + entry.FamilyName)
+	if name == "" {
+		return "-"
+	}
+	return name
 }
 
 func cmdServe(args []string) int {
