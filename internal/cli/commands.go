@@ -258,6 +258,16 @@ func cmdGRPCTCP(uri string, args []string) int {
 		return 1
 	}
 
+	scheme, err := selectTransport(holonName)
+	if err == nil {
+		switch scheme {
+		case "mem":
+			return cmdGRPCMem(holonName, args)
+		case "stdio":
+			return cmdGRPCStdio("grpc+stdio://"+holonName, args)
+		}
+	}
+
 	binary, err := resolveHolon(holonName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: holon %q not found\n", holonName)
