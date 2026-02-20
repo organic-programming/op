@@ -330,18 +330,18 @@ func cmdGRPCStdio(uri string, args []string) int {
 	}
 
 	method := args[0]
-	inputJSON := "{}"
+	inputJSON := []byte("{}")
 	if len(args) > 1 {
-		inputJSON = args[1]
+		inputJSON = []byte(args[1])
 	}
 
-	result, err := grpcclient.DialStdio(binary, method, inputJSON)
+	result, err := callViaStdio(binary, method, inputJSON)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
 		return 1
 	}
 
-	fmt.Println(result.Output)
+	fmt.Println(string(result))
 	return 0
 }
 
