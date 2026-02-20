@@ -3,7 +3,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/organic-programming/sophia-who/pkg/identity"
@@ -49,73 +48,89 @@ func TestHelpCommand(t *testing.T) {
 	}
 }
 
-func TestPromotedVerbsDelegateToWho(t *testing.T) {
-	type call struct {
-		holon string
-		args  []string
-	}
-	var calls []call
+func TestRunWhoListThroughTransportChain(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
 
-	originalDispatch := dispatchPromoted
-	dispatchPromoted = func(holon string, args []string) int {
-		calls = append(calls, call{holon: holon, args: append([]string(nil), args...)})
-		return 0
-	}
-	defer func() { dispatchPromoted = originalDispatch }()
+	seedTransportHolon(t, root, "who", "go")
+	seedTransportHolon(t, root, "atlas", "go")
 
+	code := Run([]string{"who", "list", "holons"}, "0.1.0-test")
+	if code != 0 {
+		t.Fatalf("who list returned %d, want 0", code)
+	}
+}
+
+func TestMapHolonCommandToRPC(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     []string
-		wantHolon string
-		wantArgs  []string
+		name       string
+		args       []string
+		wantMethod string
+		wantInput  string
+		wantErr    bool
 	}{
 		{
-			name:      "new",
-			input:     []string{"new", "--name", "Alpha"},
-			wantHolon: "who",
-			wantArgs:  []string{"new", "--name", "Alpha"},
+			name:       "list default",
+			args:       []string{"list"},
+			wantMethod: "ListIdentities",
+			wantInput:  "{}",
 		},
 		{
-			name:      "list",
-			input:     []string{"list", "/tmp/project"},
-			wantHolon: "who",
-			wantArgs:  []string{"list", "/tmp/project"},
+			name:       "list root dir",
+			args:       []string{"list", "holons"},
+			wantMethod: "ListIdentities",
+			wantInput:  `{"rootDir":"holons"}`,
 		},
 		{
-			name:      "show",
-			input:     []string{"show", "abcd"},
-			wantHolon: "who",
-			wantArgs:  []string{"show", "abcd"},
+			name:       "show uuid",
+			args:       []string{"show", "abc123"},
+			wantMethod: "ShowIdentity",
+			wantInput:  `{"uuid":"abc123"}`,
 		},
 		{
-			name:      "pin",
-			input:     []string{"pin", "abcd", "--version", "1.0.0"},
-			wantHolon: "who",
-			wantArgs:  []string{"pin", "abcd", "--version", "1.0.0"},
+			name:       "pin uuid",
+			args:       []string{"pin", "abc123"},
+			wantMethod: "PinVersion",
+			wantInput:  `{"uuid":"abc123"}`,
+		},
+		{
+			name:       "new with json input",
+			args:       []string{"new", `{"givenName":"Alpha"}`},
+			wantMethod: "CreateIdentity",
+			wantInput:  `{"givenName":"Alpha"}`,
+		},
+		{
+			name:       "custom method passthrough",
+			args:       []string{"ListIdentities"},
+			wantMethod: "ListIdentities",
+			wantInput:  "{}",
+		},
+		{
+			name:    "show missing uuid",
+			args:    []string{"show"},
+			wantErr: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			code := Run(tc.input, "0.1.0-test")
-			if code != 0 {
-				t.Fatalf("Run returned %d, want 0", code)
+			method, input, err := mapHolonCommandToRPC(tc.args)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("mapHolonCommandToRPC returned error: %v", err)
+			}
+			if method != tc.wantMethod {
+				t.Fatalf("method = %q, want %q", method, tc.wantMethod)
+			}
+			if input != tc.wantInput {
+				t.Fatalf("input = %q, want %q", input, tc.wantInput)
 			}
 		})
-	}
-
-	if len(calls) != len(tests) {
-		t.Fatalf("dispatch called %d times, want %d", len(calls), len(tests))
-	}
-
-	for i, tc := range tests {
-		got := calls[i]
-		if got.holon != tc.wantHolon {
-			t.Fatalf("call %d holon = %q, want %q", i, got.holon, tc.wantHolon)
-		}
-		if !reflect.DeepEqual(got.args, tc.wantArgs) {
-			t.Fatalf("call %d args = %#v, want %#v", i, got.args, tc.wantArgs)
-		}
 	}
 }
 

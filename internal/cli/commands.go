@@ -1,8 +1,9 @@
-// Package cli implements OP's command routing — promoted verbs,
-// namespace dispatch, and OP's own commands.
+// Package cli implements OP's command routing — transport-chain dispatch,
+// URI dispatch, and OP's own commands.
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -16,40 +17,12 @@ import (
 	"github.com/organic-programming/sophia-who/pkg/identity"
 )
 
-type promotedRoute struct {
-	holon   string
-	command string
-}
-
-// promotedRoutes maps OP top-level verbs to their provider holon command.
-// Routing through the provider binary guarantees behavior parity (streaming,
-// formatting, and flags) without re-implementing provider logic in OP.
-var promotedRoutes = map[string]promotedRoute{
-	"new":  {holon: "who", command: "new"},
-	"list": {holon: "who", command: "list"},
-	"show": {holon: "who", command: "show"},
-	"pin":  {holon: "who", command: "pin"},
-}
-
-// dispatchPromoted is injectable for tests.
-var dispatchPromoted = cmdDispatch
-
 // Run dispatches the command and returns an exit code.
 func Run(args []string, version string) int {
 	cmd := args[0]
 	rest := args[1:]
 
 	switch cmd {
-	// --- Promoted verbs (delegate to provider holon binary) ---
-	case "new":
-		return runPromoted("new", rest)
-	case "list":
-		return runPromoted("list", rest)
-	case "show":
-		return runPromoted("show", rest)
-	case "pin":
-		return runPromoted("pin", rest)
-
 	// --- OP's own commands ---
 	case "run":
 		return cmdRun(rest)
@@ -73,35 +46,22 @@ func Run(args []string, version string) int {
 			strings.HasPrefix(cmd, "grpc+wss://") {
 			return cmdGRPC(cmd, rest)
 		}
-		return cmdDispatch(cmd, rest)
+		return cmdHolon(cmd, rest)
 	}
-}
-
-func runPromoted(verb string, args []string) int {
-	route, ok := promotedRoutes[verb]
-	if !ok {
-		fmt.Fprintf(os.Stderr, "op: unknown promoted verb %q\n", verb)
-		return 1
-	}
-
-	providerArgs := make([]string, 0, 1+len(args))
-	providerArgs = append(providerArgs, route.command)
-	providerArgs = append(providerArgs, args...)
-	return dispatchPromoted(route.holon, providerArgs)
 }
 
 // PrintUsage displays the help text.
 func PrintUsage() {
 	fmt.Print(`op — the Organic Programming CLI
 
-Promoted verbs (Sophia Who?):
-  op new                                 create a new holon identity
-  op list [root]                         list all known holons in root
-  op show <uuid>                         display a holon's identity
-  op pin <uuid>                          capture version/commit/arch
+Holon dispatch (transport chain):
+  op <holon> <command> [args]            dispatch via mem://, stdio://, or tcp://
+  op who list [root]                     mapped RPC: ListIdentities
+  op who show <uuid>                     mapped RPC: ShowIdentity
+  op who pin <uuid>                      mapped RPC: PinVersion
+  op who new <json>                      mapped RPC: CreateIdentity
 
-Facet dispatch:
-  op <holon> <command> [args]            CLI facet (subprocess)
+Direct gRPC URI dispatch:
   op grpc://<host:port> <method>         gRPC over TCP (existing server)
   op grpc+stdio://<holon> <method>       gRPC over stdio pipe (ephemeral)
   op grpc+unix://<path> <method>         gRPC over Unix socket
@@ -422,6 +382,114 @@ func discoverInPath() []string {
 }
 
 // --- Namespace dispatch ---
+
+// cmdHolon runs `op <holon> <command> [args...]` through the transport chain.
+func cmdHolon(holon string, args []string) int {
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "op: missing command for holon %q\n", holon)
+		return 1
+	}
+
+	method, inputJSON, err := mapHolonCommandToRPC(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op: %v\n", err)
+		return 1
+	}
+
+	scheme, err := selectTransport(holon)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op: %v\n", err)
+		return 1
+	}
+
+	switch scheme {
+	case "mem":
+		output, err := callViaMem(holon, method, inputJSON)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "op: %v\n", err)
+			return 1
+		}
+		fmt.Println(output)
+		return 0
+	case "stdio":
+		binary, err := resolveHolon(holon)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "op: unknown holon %q\n", holon)
+			return 1
+		}
+		output, err := callViaStdio(binary, method, []byte(inputJSON))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "op: %v\n", err)
+			return 1
+		}
+		fmt.Println(string(output))
+		return 0
+	default:
+		return cmdGRPCTCP("grpc://"+holon, []string{method, inputJSON})
+	}
+}
+
+func mapHolonCommandToRPC(args []string) (method string, inputJSON string, err error) {
+	command := strings.TrimSpace(args[0])
+	rest := args[1:]
+
+	method = mapCommandNameToMethod(command)
+	if len(rest) > 0 && looksLikeJSON(rest[0]) {
+		return method, rest[0], nil
+	}
+
+	switch strings.ToLower(command) {
+	case "list":
+		if len(rest) > 0 {
+			payload, err := json.Marshal(map[string]string{"rootDir": rest[0]})
+			if err != nil {
+				return "", "", err
+			}
+			return method, string(payload), nil
+		}
+		return method, "{}", nil
+	case "show":
+		if len(rest) < 1 {
+			return "", "", fmt.Errorf("show requires <uuid>")
+		}
+		payload, err := json.Marshal(map[string]string{"uuid": rest[0]})
+		if err != nil {
+			return "", "", err
+		}
+		return method, string(payload), nil
+	case "pin":
+		if len(rest) < 1 {
+			return "", "", fmt.Errorf("pin requires <uuid>")
+		}
+		payload, err := json.Marshal(map[string]string{"uuid": rest[0]})
+		if err != nil {
+			return "", "", err
+		}
+		return method, string(payload), nil
+	default:
+		return method, "{}", nil
+	}
+}
+
+func mapCommandNameToMethod(command string) string {
+	switch strings.ToLower(strings.TrimSpace(command)) {
+	case "new":
+		return "CreateIdentity"
+	case "list":
+		return "ListIdentities"
+	case "show":
+		return "ShowIdentity"
+	case "pin":
+		return "PinVersion"
+	default:
+		return command
+	}
+}
+
+func looksLikeJSON(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	return strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")
+}
 
 // cmdDispatch runs `op <holon> <command> [args...]` by finding the
 // holon binary and executing it as a subprocess.
