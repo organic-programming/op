@@ -4,10 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
 	"syscall"
 	"time"
@@ -35,48 +32,45 @@ func callViaStdio(binaryPath string, method string, input []byte) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("dial stdio: %w", err)
 	}
-	defer conn.Close()
+
+	defer func() {
+		// Closing the gRPC client conn closes the stdio pipe and may let the child
+		// exit naturally before we send SIGTERM.
+		_ = conn.Close()
+
+		if cmd == nil {
+			return
+		}
+
+		// Best effort graceful shutdown. Ignore errors here because the process may
+		// have already exited.
+		if cmd.Process != nil {
+			_ = cmd.Process.Signal(syscall.SIGTERM)
+		}
+
+		// Always wait to reap the child and avoid zombies.
+		done := make(chan error, 1)
+		go func() {
+			done <- cmd.Wait()
+		}()
+
+		select {
+		case <-done:
+			// Exited (cleanly or by signal). Either is acceptable for cleanup.
+		case <-time.After(5 * time.Second):
+			// If TERM was ignored, force kill then always reap.
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+			}
+			<-done
+		}
+	}()
 
 	output, callErr := invokeViaReflection(ctx, conn, method, input)
-	cleanupErr := terminateStdioProcess(cmd)
-
 	if callErr != nil {
 		return nil, callErr
 	}
-	if cleanupErr != nil {
-		return nil, cleanupErr
-	}
 	return output, nil
-}
-
-func terminateStdioProcess(cmd *exec.Cmd) error {
-	if cmd == nil {
-		return nil
-	}
-	if cmd.Process != nil {
-		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
-			return fmt.Errorf("send SIGTERM: %w", err)
-		}
-	}
-
-	waitCh := make(chan error, 1)
-	go func() {
-		waitCh <- cmd.Wait()
-	}()
-
-	select {
-	case err := <-waitCh:
-		if err == nil || errors.Is(err, os.ErrProcessDone) {
-			return nil
-		}
-		return fmt.Errorf("wait process exit: %w", err)
-	case <-time.After(3 * time.Second):
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-		<-waitCh
-		return fmt.Errorf("process did not exit after SIGTERM")
-	}
 }
 
 func invokeViaReflection(ctx context.Context, conn *grpc.ClientConn, method string, input []byte) ([]byte, error) {
