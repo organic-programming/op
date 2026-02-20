@@ -99,7 +99,7 @@ func resolveMemComposer(holonName string) (*memHolonComposer, error) {
 	return composer, nil
 }
 
-func cmdGRPCMem(holonName string, args []string) int {
+func cmdGRPCMem(format Format, holonName string, args []string) int {
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "op grpc: method required")
 		fmt.Fprintf(os.Stderr, "usage: op grpc://%s <method>\n", holonName)
@@ -118,7 +118,7 @@ func cmdGRPCMem(holonName string, args []string) int {
 		return 1
 	}
 
-	fmt.Println(output)
+	fmt.Println(formatRPCOutput(format, method, []byte(output)))
 	return 0
 }
 

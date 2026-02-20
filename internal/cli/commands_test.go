@@ -186,3 +186,86 @@ func TestFlagOrDefault(t *testing.T) {
 		t.Errorf("flagOrDefault(--missing) = %q, want %q", v, "fallback")
 	}
 }
+
+func TestParseGlobalFormat(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		wantFormat Format
+		wantArgs   []string
+		wantErr    bool
+	}{
+		{
+			name:       "default format",
+			args:       []string{"who", "list"},
+			wantFormat: FormatText,
+			wantArgs:   []string{"who", "list"},
+		},
+		{
+			name:       "long flag",
+			args:       []string{"--format", "json", "who", "list"},
+			wantFormat: FormatJSON,
+			wantArgs:   []string{"who", "list"},
+		},
+		{
+			name:       "short flag",
+			args:       []string{"-f", "json", "who", "list"},
+			wantFormat: FormatJSON,
+			wantArgs:   []string{"who", "list"},
+		},
+		{
+			name:       "inline long flag",
+			args:       []string{"--format=text", "who", "list"},
+			wantFormat: FormatText,
+			wantArgs:   []string{"who", "list"},
+		},
+		{
+			name:       "inline short flag",
+			args:       []string{"-f=text", "who", "list"},
+			wantFormat: FormatText,
+			wantArgs:   []string{"who", "list"},
+		},
+		{
+			name:       "flag after command is not global",
+			args:       []string{"who", "-f", "json", "list"},
+			wantFormat: FormatText,
+			wantArgs:   []string{"who", "-f", "json", "list"},
+		},
+		{
+			name:    "invalid format",
+			args:    []string{"--format", "yaml", "who", "list"},
+			wantErr: true,
+		},
+		{
+			name:    "missing format value",
+			args:    []string{"-f"},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gotFormat, gotArgs, err := parseGlobalFormat(tc.args)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseGlobalFormat returned error: %v", err)
+			}
+			if gotFormat != tc.wantFormat {
+				t.Fatalf("format = %q, want %q", gotFormat, tc.wantFormat)
+			}
+			if len(gotArgs) != len(tc.wantArgs) {
+				t.Fatalf("args length = %d, want %d", len(gotArgs), len(tc.wantArgs))
+			}
+			for i := range gotArgs {
+				if gotArgs[i] != tc.wantArgs[i] {
+					t.Fatalf("args[%d] = %q, want %q", i, gotArgs[i], tc.wantArgs[i])
+				}
+			}
+		})
+	}
+}

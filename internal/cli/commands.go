@@ -19,6 +19,16 @@ import (
 
 // Run dispatches the command and returns an exit code.
 func Run(args []string, version string) int {
+	format, args, err := parseGlobalFormat(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op: %v\n", err)
+		return 1
+	}
+	if len(args) == 0 {
+		PrintUsage()
+		return 1
+	}
+
 	cmd := args[0]
 	rest := args[1:]
 
@@ -44,15 +54,18 @@ func Run(args []string, version string) int {
 			strings.HasPrefix(cmd, "grpc+unix://") ||
 			strings.HasPrefix(cmd, "grpc+ws://") ||
 			strings.HasPrefix(cmd, "grpc+wss://") {
-			return cmdGRPC(cmd, rest)
+			return cmdGRPC(format, cmd, rest)
 		}
-		return cmdHolon(cmd, rest)
+		return cmdHolon(format, cmd, rest)
 	}
 }
 
 // PrintUsage displays the help text.
 func PrintUsage() {
 	fmt.Print(`op — the Organic Programming CLI
+
+Global flags (must come before <holon> or URI):
+  -f, --format <text|json>              output format for RPC responses (default: text)
 
 Holon dispatch (transport chain):
   op <holon> <command> [args]            dispatch via mem://, stdio://, or tcp://
@@ -186,28 +199,28 @@ func cmdRun(args []string) int {
 //   - grpc://holon <method>           → ephemeral TCP: start binary, call, stop
 //   - grpc+stdio://holon <method>     → stdio pipe: launch, pipe, call, done
 //   - grpc+unix://path <method>       → Unix domain socket connection
-func cmdGRPC(uri string, args []string) int {
+func cmdGRPC(format Format, uri string, args []string) int {
 	switch {
 	case strings.HasPrefix(uri, "grpc+stdio://"):
-		return cmdGRPCStdio(uri, args)
+		return cmdGRPCStdio(format, uri, args)
 	case strings.HasPrefix(uri, "grpc+unix://"):
-		return cmdGRPCDirect("unix://"+strings.TrimPrefix(uri, "grpc+unix://"), args)
+		return cmdGRPCDirect(format, "unix://"+strings.TrimPrefix(uri, "grpc+unix://"), args)
 	case strings.HasPrefix(uri, "grpc+ws://") || strings.HasPrefix(uri, "grpc+wss://"):
-		return cmdGRPCWebSocket(uri, args)
+		return cmdGRPCWebSocket(format, uri, args)
 	default:
-		return cmdGRPCTCP(uri, args)
+		return cmdGRPCTCP(format, uri, args)
 	}
 }
 
 // cmdGRPCTCP handles grpc://host:port and grpc://holon (ephemeral TCP).
-func cmdGRPCTCP(uri string, args []string) int {
+func cmdGRPCTCP(format Format, uri string, args []string) int {
 	address := strings.TrimPrefix(uri, "grpc://")
 
 	_, _, err := net.SplitHostPort(address)
 	isHostPort := err == nil
 
 	if isHostPort {
-		return cmdGRPCDirect(address, args)
+		return cmdGRPCDirect(format, address, args)
 	}
 
 	// Ephemeral TCP mode: address is a holon name
@@ -222,9 +235,9 @@ func cmdGRPCTCP(uri string, args []string) int {
 	if err == nil {
 		switch scheme {
 		case "mem":
-			return cmdGRPCMem(holonName, args)
+			return cmdGRPCMem(format, holonName, args)
 		case "stdio":
-			return cmdGRPCStdio("grpc+stdio://"+holonName, args)
+			return cmdGRPCStdio(format, "grpc+stdio://"+holonName, args)
 		}
 	}
 
@@ -270,12 +283,12 @@ func cmdGRPCTCP(uri string, args []string) int {
 		return 1
 	}
 
-	return cmdGRPCDirect(target, args)
+	return cmdGRPCDirect(format, target, args)
 }
 
 // cmdGRPCStdio handles grpc+stdio://holon — launches the holon with
 // serve --listen stdio:// and communicates via stdin/stdout pipes.
-func cmdGRPCStdio(uri string, args []string) int {
+func cmdGRPCStdio(format Format, uri string, args []string) int {
 	holonName := strings.TrimPrefix(uri, "grpc+stdio://")
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "op grpc: method required")
@@ -301,13 +314,13 @@ func cmdGRPCStdio(uri string, args []string) int {
 		return 1
 	}
 
-	fmt.Println(string(result))
+	fmt.Println(formatRPCOutput(format, method, result))
 	return 0
 }
 
 // cmdGRPCWebSocket handles grpc+ws://host:port[/path] and grpc+wss://...
 // Connects to an existing WebSocket gRPC server.
-func cmdGRPCWebSocket(uri string, args []string) int {
+func cmdGRPCWebSocket(format Format, uri string, args []string) int {
 	// Convert grpc+ws://host:port → ws://host:port
 	// Convert grpc+wss://host:port → wss://host:port
 	wsURI := strings.TrimPrefix(uri, "grpc+")
@@ -335,12 +348,12 @@ func cmdGRPCWebSocket(uri string, args []string) int {
 		return 1
 	}
 
-	fmt.Println(result.Output)
+	fmt.Println(formatRPCOutput(format, method, []byte(result.Output)))
 	return 0
 }
 
 // cmdGRPCDirect calls an RPC on an existing gRPC server at the given address.
-func cmdGRPCDirect(address string, args []string) int {
+func cmdGRPCDirect(format Format, address string, args []string) int {
 	if len(args) == 0 {
 		methods, err := grpcclient.ListMethods(address)
 		if err != nil {
@@ -366,7 +379,7 @@ func cmdGRPCDirect(address string, args []string) int {
 		return 1
 	}
 
-	fmt.Println(result.Output)
+	fmt.Println(formatRPCOutput(format, method, []byte(result.Output)))
 	return 0
 }
 
@@ -384,7 +397,7 @@ func discoverInPath() []string {
 // --- Namespace dispatch ---
 
 // cmdHolon runs `op <holon> <command> [args...]` through the transport chain.
-func cmdHolon(holon string, args []string) int {
+func cmdHolon(format Format, holon string, args []string) int {
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, "op: missing command for holon %q\n", holon)
 		return 1
@@ -409,7 +422,7 @@ func cmdHolon(holon string, args []string) int {
 			fmt.Fprintf(os.Stderr, "op: %v\n", err)
 			return 1
 		}
-		fmt.Println(output)
+		fmt.Println(formatRPCOutput(format, method, []byte(output)))
 		return 0
 	case "stdio":
 		binary, err := resolveHolon(holon)
@@ -422,10 +435,10 @@ func cmdHolon(holon string, args []string) int {
 			fmt.Fprintf(os.Stderr, "op: %v\n", err)
 			return 1
 		}
-		fmt.Println(string(output))
+		fmt.Println(formatRPCOutput(format, method, output))
 		return 0
 	default:
-		return cmdGRPCTCP("grpc://"+holon, []string{method, inputJSON})
+		return cmdGRPCTCP(format, "grpc://"+holon, []string{method, inputJSON})
 	}
 }
 
@@ -573,4 +586,51 @@ func flagOrDefault(args []string, key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+func parseGlobalFormat(args []string) (Format, []string, error) {
+	format := FormatText
+	i := 0
+	for i < len(args) {
+		switch {
+		case args[i] == "--format" || args[i] == "-f":
+			if i+1 >= len(args) {
+				return "", nil, fmt.Errorf("%s requires a value (text or json)", args[i])
+			}
+			parsed, err := parseFormat(args[i+1])
+			if err != nil {
+				return "", nil, err
+			}
+			format = parsed
+			i += 2
+		case strings.HasPrefix(args[i], "--format="):
+			parsed, err := parseFormat(strings.TrimPrefix(args[i], "--format="))
+			if err != nil {
+				return "", nil, err
+			}
+			format = parsed
+			i++
+		case strings.HasPrefix(args[i], "-f="):
+			parsed, err := parseFormat(strings.TrimPrefix(args[i], "-f="))
+			if err != nil {
+				return "", nil, err
+			}
+			format = parsed
+			i++
+		default:
+			return format, args[i:], nil
+		}
+	}
+	return format, nil, nil
+}
+
+func parseFormat(value string) (Format, error) {
+	switch Format(strings.ToLower(strings.TrimSpace(value))) {
+	case FormatText:
+		return FormatText, nil
+	case FormatJSON:
+		return FormatJSON, nil
+	default:
+		return "", fmt.Errorf("invalid --format %q (supported: text, json)", value)
+	}
 }
