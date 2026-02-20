@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/organic-programming/go-holons/pkg/transport"
+	sophiapb "github.com/organic-programming/sophia-who/gen/go/sophia_who/v1"
 	"github.com/organic-programming/sophia-who/pkg/identity"
 
 	pb "github.com/organic-programming/grace-op/gen/go/op/v1"
@@ -89,7 +90,7 @@ func (s *Server) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb.InvokeR
 // --- Promoted identity RPCs (delegate to Sophia's API) ---
 
 // CreateIdentity creates a new holon identity.
-func (s *Server) CreateIdentity(ctx context.Context, req *pb.CreateIdentityRequest) (*pb.CreateIdentityResponse, error) {
+func (s *Server) CreateIdentity(ctx context.Context, req *sophiapb.CreateIdentityRequest) (*sophiapb.CreateIdentityResponse, error) {
 	id := identity.New()
 
 	if req.GivenName == "" || req.FamilyName == "" || req.Motto == "" || req.Composer == "" {
@@ -100,8 +101,8 @@ func (s *Server) CreateIdentity(ctx context.Context, req *pb.CreateIdentityReque
 	id.FamilyName = req.FamilyName
 	id.Motto = req.Motto
 	id.Composer = req.Composer
-	if req.Clade != "" {
-		id.Clade = req.Clade
+	if clade := cladeFromProto(req.Clade); clade != "" {
+		id.Clade = clade
 	}
 	if req.Lang != "" {
 		id.Lang = req.Lang
@@ -112,8 +113,8 @@ func (s *Server) CreateIdentity(ctx context.Context, req *pb.CreateIdentityReque
 	if req.WrappedLicense != "" {
 		id.WrappedLicense = req.WrappedLicense
 	}
-	if req.Reproduction != "" {
-		id.Reproduction = req.Reproduction
+	if reproduction := reproductionFromProto(req.Reproduction); reproduction != "" {
+		id.Reproduction = reproduction
 	}
 
 	outputDir := req.OutputDir
@@ -132,14 +133,14 @@ func (s *Server) CreateIdentity(ctx context.Context, req *pb.CreateIdentityReque
 		return nil, err
 	}
 
-	return &pb.CreateIdentityResponse{
+	return &sophiapb.CreateIdentityResponse{
 		Identity: toProto(id),
 		FilePath: outputPath,
 	}, nil
 }
 
 // ListIdentities lists all known holon identities.
-func (s *Server) ListIdentities(ctx context.Context, req *pb.ListIdentitiesRequest) (*pb.ListIdentitiesResponse, error) {
+func (s *Server) ListIdentities(ctx context.Context, req *sophiapb.ListIdentitiesRequest) (*sophiapb.ListIdentitiesResponse, error) {
 	root := req.RootDir
 	if root == "" {
 		root = "."
@@ -150,19 +151,19 @@ func (s *Server) ListIdentities(ctx context.Context, req *pb.ListIdentitiesReque
 		return nil, err
 	}
 
-	entries := make([]*pb.HolonEntry, 0, len(holons))
+	entries := make([]*sophiapb.HolonEntry, 0, len(holons))
 	for _, h := range holons {
-		entries = append(entries, &pb.HolonEntry{
+		entries = append(entries, &sophiapb.HolonEntry{
 			Identity: toProto(h),
 			Origin:   "local",
 		})
 	}
 
-	return &pb.ListIdentitiesResponse{Entries: entries}, nil
+	return &sophiapb.ListIdentitiesResponse{Entries: entries}, nil
 }
 
 // ShowIdentity retrieves a holon's identity by UUID.
-func (s *Server) ShowIdentity(ctx context.Context, req *pb.ShowIdentityRequest) (*pb.ShowIdentityResponse, error) {
+func (s *Server) ShowIdentity(ctx context.Context, req *sophiapb.ShowIdentityRequest) (*sophiapb.ShowIdentityResponse, error) {
 	path, err := identity.FindByUUID(".", req.Uuid)
 	if err != nil {
 		return nil, err
@@ -178,7 +179,7 @@ func (s *Server) ShowIdentity(ctx context.Context, req *pb.ShowIdentityRequest) 
 		return nil, err
 	}
 
-	return &pb.ShowIdentityResponse{
+	return &sophiapb.ShowIdentityResponse{
 		Identity:   toProto(id),
 		FilePath:   path,
 		RawContent: string(data),
@@ -186,7 +187,7 @@ func (s *Server) ShowIdentity(ctx context.Context, req *pb.ShowIdentityRequest) 
 }
 
 // PinVersion pins version metadata to a holon.
-func (s *Server) PinVersion(ctx context.Context, req *pb.PinVersionRequest) (*pb.PinVersionResponse, error) {
+func (s *Server) PinVersion(ctx context.Context, req *sophiapb.PinVersionRequest) (*sophiapb.PinVersionResponse, error) {
 	path, err := identity.FindByUUID(".", req.Uuid)
 	if err != nil {
 		return nil, err
@@ -225,7 +226,7 @@ func (s *Server) PinVersion(ctx context.Context, req *pb.PinVersionRequest) (*pb
 		return nil, err
 	}
 
-	return &pb.PinVersionResponse{Identity: toProto(id)}, nil
+	return &sophiapb.PinVersionResponse{Identity: toProto(id)}, nil
 }
 
 // ListenAndServe starts the gRPC server on the given transport URI.
@@ -252,18 +253,18 @@ func ListenAndServe(listenURI string, reflect bool) error {
 
 // --- Helpers ---
 
-func toProto(id identity.Identity) *pb.HolonIdentity {
-	return &pb.HolonIdentity{
+func toProto(id identity.Identity) *sophiapb.HolonIdentity {
+	return &sophiapb.HolonIdentity{
 		Uuid:           id.UUID,
 		GivenName:      id.GivenName,
 		FamilyName:     id.FamilyName,
 		Motto:          id.Motto,
 		Composer:       id.Composer,
-		Clade:          id.Clade,
-		Status:         id.Status,
+		Clade:          cladeToProto(id.Clade),
+		Status:         statusToProto(id.Status),
 		Born:           id.Born,
 		Parents:        id.Parents,
-		Reproduction:   id.Reproduction,
+		Reproduction:   reproductionToProto(id.Reproduction),
 		BinaryPath:     id.BinaryPath,
 		BinaryVersion:  id.BinaryVersion,
 		GitTag:         id.GitTag,
@@ -275,7 +276,94 @@ func toProto(id identity.Identity) *pb.HolonIdentity {
 		WrappedLicense: id.WrappedLicense,
 		GeneratedBy:    id.GeneratedBy,
 		Lang:           id.Lang,
-		ProtoStatus:    id.ProtoStatus,
+		ProtoStatus:    statusToProto(id.ProtoStatus),
+	}
+}
+
+func cladeToProto(value string) sophiapb.Clade {
+	switch strings.ToLower(value) {
+	case "deterministic/pure":
+		return sophiapb.Clade_DETERMINISTIC_PURE
+	case "deterministic/stateful":
+		return sophiapb.Clade_DETERMINISTIC_STATEFUL
+	case "deterministic/io_bound":
+		return sophiapb.Clade_DETERMINISTIC_IO_BOUND
+	case "probabilistic/generative":
+		return sophiapb.Clade_PROBABILISTIC_GENERATIVE
+	case "probabilistic/perceptual":
+		return sophiapb.Clade_PROBABILISTIC_PERCEPTUAL
+	case "probabilistic/adaptive":
+		return sophiapb.Clade_PROBABILISTIC_ADAPTIVE
+	default:
+		return sophiapb.Clade_CLADE_UNSPECIFIED
+	}
+}
+
+func cladeFromProto(value sophiapb.Clade) string {
+	switch value {
+	case sophiapb.Clade_DETERMINISTIC_PURE:
+		return "deterministic/pure"
+	case sophiapb.Clade_DETERMINISTIC_STATEFUL:
+		return "deterministic/stateful"
+	case sophiapb.Clade_DETERMINISTIC_IO_BOUND:
+		return "deterministic/io_bound"
+	case sophiapb.Clade_PROBABILISTIC_GENERATIVE:
+		return "probabilistic/generative"
+	case sophiapb.Clade_PROBABILISTIC_PERCEPTUAL:
+		return "probabilistic/perceptual"
+	case sophiapb.Clade_PROBABILISTIC_ADAPTIVE:
+		return "probabilistic/adaptive"
+	default:
+		return ""
+	}
+}
+
+func statusToProto(value string) sophiapb.Status {
+	switch strings.ToLower(value) {
+	case "draft":
+		return sophiapb.Status_DRAFT
+	case "stable":
+		return sophiapb.Status_STABLE
+	case "deprecated":
+		return sophiapb.Status_DEPRECATED
+	case "dead":
+		return sophiapb.Status_DEAD
+	default:
+		return sophiapb.Status_STATUS_UNSPECIFIED
+	}
+}
+
+func reproductionToProto(value string) sophiapb.ReproductionMode {
+	switch strings.ToLower(value) {
+	case "manual":
+		return sophiapb.ReproductionMode_MANUAL
+	case "assisted":
+		return sophiapb.ReproductionMode_ASSISTED
+	case "automatic":
+		return sophiapb.ReproductionMode_AUTOMATIC
+	case "autopoietic":
+		return sophiapb.ReproductionMode_AUTOPOIETIC
+	case "bred":
+		return sophiapb.ReproductionMode_BRED
+	default:
+		return sophiapb.ReproductionMode_REPRODUCTION_UNSPECIFIED
+	}
+}
+
+func reproductionFromProto(value sophiapb.ReproductionMode) string {
+	switch value {
+	case sophiapb.ReproductionMode_MANUAL:
+		return "manual"
+	case sophiapb.ReproductionMode_ASSISTED:
+		return "assisted"
+	case sophiapb.ReproductionMode_AUTOMATIC:
+		return "automatic"
+	case sophiapb.ReproductionMode_AUTOPOIETIC:
+		return "autopoietic"
+	case sophiapb.ReproductionMode_BRED:
+		return "bred"
+	default:
+		return ""
 	}
 }
 

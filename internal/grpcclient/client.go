@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -189,18 +190,102 @@ func resolveService(stream grpc_reflection_v1alpha.ServerReflection_ServerReflec
 		return nil, fmt.Errorf("no file descriptor for %s", serviceName)
 	}
 
-	// Parse all file descriptors
-	var files []*descriptorpb.FileDescriptorProto
+	// Parse descriptors returned for the symbol first.
+	filesByName := make(map[string]*descriptorpb.FileDescriptorProto)
+	var queue []string
 	for _, b := range fdResp.FileDescriptorProto {
 		fd := &descriptorpb.FileDescriptorProto{}
 		if err := proto.Unmarshal(b, fd); err != nil {
 			return nil, fmt.Errorf("unmarshal file descriptor: %w", err)
 		}
-		files = append(files, fd)
+		name := fd.GetName()
+		if name == "" {
+			continue
+		}
+		if _, exists := filesByName[name]; exists {
+			continue
+		}
+		filesByName[name] = fd
+		queue = append(queue, name)
+	}
+
+	// Some transports/reflection stacks do not include transitive imports in the
+	// initial response. Resolve any missing dependencies on-demand.
+	for i := 0; i < len(queue); i++ {
+		fd := filesByName[queue[i]]
+		for _, dep := range fd.GetDependency() {
+			if _, exists := filesByName[dep]; exists {
+				continue
+			}
+
+			depFiles, err := resolveFileByName(stream, dep)
+			if err != nil && !strings.HasPrefix(dep, "protos/") {
+				// Some servers register descriptors with a "protos/" prefix.
+				depFiles, err = resolveFileByName(stream, "protos/"+dep)
+			}
+			if err != nil {
+				return nil, err
+			}
+
+			aliasSourceName := ""
+			for _, depFD := range depFiles {
+				name := depFD.GetName()
+				if name == "" || name == dep {
+					continue
+				}
+				if strings.HasSuffix(name, dep) {
+					aliasSourceName = name
+					break
+				}
+			}
+
+			resolvedDepName := false
+			for _, depFD := range depFiles {
+				name := depFD.GetName()
+				if name == "" {
+					continue
+				}
+				if name == dep {
+					resolvedDepName = true
+				}
+				if aliasSourceName != "" && name == aliasSourceName {
+					// Keep only the aliased name to avoid duplicate symbol conflicts.
+					continue
+				}
+				if _, exists := filesByName[name]; exists {
+					continue
+				}
+				filesByName[name] = depFD
+				queue = append(queue, name)
+			}
+
+			// Some reflection servers return the right descriptor content under a
+			// different filename (e.g. prefixed with "protos/"). Alias it to the
+			// dependency name expected by the importing file.
+			if !resolvedDepName && aliasSourceName != "" {
+				for _, depFD := range depFiles {
+					name := depFD.GetName()
+					if name != aliasSourceName {
+						continue
+					}
+					aliased := proto.Clone(depFD).(*descriptorpb.FileDescriptorProto)
+					aliased.Name = proto.String(dep)
+					filesByName[dep] = aliased
+					queue = append(queue, dep)
+					resolvedDepName = true
+					break
+				}
+			}
+		}
 	}
 
 	// Build a file descriptor set and resolve
-	fds := &descriptorpb.FileDescriptorSet{File: files}
+	fds := &descriptorpb.FileDescriptorSet{
+		File: make([]*descriptorpb.FileDescriptorProto, 0, len(queue)),
+	}
+	for _, name := range queue {
+		fds.File = append(fds.File, filesByName[name])
+	}
 	fileDescs, err := protodesc.NewFiles(fds)
 	if err != nil {
 		return nil, fmt.Errorf("build file descriptors: %w", err)
@@ -217,6 +302,40 @@ func resolveService(stream grpc_reflection_v1alpha.ServerReflection_ServerReflec
 	}
 
 	return sd, nil
+}
+
+func resolveFileByName(
+	stream grpc_reflection_v1alpha.ServerReflection_ServerReflectionInfoClient,
+	filename string,
+) ([]*descriptorpb.FileDescriptorProto, error) {
+	if err := stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
+		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_FileByFilename{
+			FileByFilename: filename,
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("request descriptor %s: %w", filename, err)
+	}
+
+	resp, err := stream.Recv()
+	if err != nil {
+		return nil, fmt.Errorf("read descriptor %s: %w", filename, err)
+	}
+
+	fdResp := resp.GetFileDescriptorResponse()
+	if fdResp == nil {
+		return nil, fmt.Errorf("no file descriptor response for %s", filename)
+	}
+
+	files := make([]*descriptorpb.FileDescriptorProto, 0, len(fdResp.FileDescriptorProto))
+	for _, b := range fdResp.FileDescriptorProto {
+		fd := &descriptorpb.FileDescriptorProto{}
+		if err := proto.Unmarshal(b, fd); err != nil {
+			return nil, fmt.Errorf("unmarshal descriptor %s: %w", filename, err)
+		}
+		files = append(files, fd)
+	}
+
+	return files, nil
 }
 
 func callMethod(ctx context.Context, conn *grpc.ClientConn, svc protoreflect.ServiceDescriptor, method protoreflect.MethodDescriptor, inputJSON string) (*CallResult, error) {
@@ -478,6 +597,8 @@ func DialWebSocket(wsURI, methodName, inputJSON string) (*CallResult, error) {
 		return nil, fmt.Errorf("no services found via ws")
 	}
 
+	var available []string
+	var resolveErrors []string
 	for _, svc := range listResult.Service {
 		if svc.Name == "grpc.reflection.v1alpha.ServerReflection" ||
 			svc.Name == "grpc.reflection.v1.ServerReflection" {
@@ -485,16 +606,27 @@ func DialWebSocket(wsURI, methodName, inputJSON string) (*CallResult, error) {
 		}
 		desc, err := resolveService(stream, svc.Name)
 		if err != nil {
+			resolveErrors = append(resolveErrors, fmt.Sprintf("%s: %v", svc.Name, err))
 			continue
 		}
 		methods := desc.Methods()
 		for i := 0; i < methods.Len(); i++ {
 			method := methods.Get(i)
+			available = append(available, fmt.Sprintf("%s/%s", svc.Name, method.Name()))
 			if string(method.Name()) == methodName {
 				return callMethod(ctx, conn, desc, method, inputJSON)
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("method %q not found via ws", methodName)
+	if len(resolveErrors) > 0 {
+		return nil, fmt.Errorf(
+			"method %q not found via ws. available: %v. descriptor errors: %v",
+			methodName,
+			available,
+			resolveErrors,
+		)
+	}
+
+	return nil, fmt.Errorf("method %q not found via ws. available: %v", methodName, available)
 }

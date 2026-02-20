@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/organic-programming/go-holons/pkg/transport"
+	sophiapb "github.com/organic-programming/sophia-who/gen/go/sophia_who/v1"
 	"github.com/organic-programming/sophia-who/pkg/identity"
 
 	pb "github.com/organic-programming/grace-op/gen/go/op/v1"
@@ -170,12 +171,12 @@ func TestCreateIdentity(t *testing.T) {
 	client, cleanup := startTestServer(t, root)
 	defer cleanup()
 
-	resp, err := client.CreateIdentity(context.Background(), &pb.CreateIdentityRequest{
+	resp, err := client.CreateIdentity(context.Background(), &sophiapb.CreateIdentityRequest{
 		GivenName:  "NewHolon",
 		FamilyName: "RPC",
 		Motto:      "Born by gRPC.",
 		Composer:   "Test Suite",
-		Clade:      "probabilistic/generative",
+		Clade:      sophiapb.Clade_PROBABILISTIC_GENERATIVE,
 		OutputDir:  filepath.Join(root, "new-holon"),
 	})
 	if err != nil {
@@ -197,7 +198,7 @@ func TestCreateIdentityValidation(t *testing.T) {
 	client, cleanup := startTestServer(t, root)
 	defer cleanup()
 
-	_, err := client.CreateIdentity(context.Background(), &pb.CreateIdentityRequest{
+	_, err := client.CreateIdentity(context.Background(), &sophiapb.CreateIdentityRequest{
 		GivenName: "OnlyName",
 	})
 	if err == nil {
@@ -213,7 +214,7 @@ func TestListIdentities(t *testing.T) {
 	client, cleanup := startTestServer(t, root)
 	defer cleanup()
 
-	resp, err := client.ListIdentities(context.Background(), &pb.ListIdentitiesRequest{})
+	resp, err := client.ListIdentities(context.Background(), &sophiapb.ListIdentitiesRequest{})
 	if err != nil {
 		t.Fatalf("ListIdentities failed: %v", err)
 	}
@@ -227,7 +228,7 @@ func TestListIdentitiesEmpty(t *testing.T) {
 	client, cleanup := startTestServer(t, root)
 	defer cleanup()
 
-	resp, err := client.ListIdentities(context.Background(), &pb.ListIdentitiesRequest{})
+	resp, err := client.ListIdentities(context.Background(), &sophiapb.ListIdentitiesRequest{})
 	if err != nil {
 		t.Fatalf("ListIdentities failed: %v", err)
 	}
@@ -243,7 +244,7 @@ func TestShowIdentity(t *testing.T) {
 	client, cleanup := startTestServer(t, root)
 	defer cleanup()
 
-	resp, err := client.ShowIdentity(context.Background(), &pb.ShowIdentityRequest{
+	resp, err := client.ShowIdentity(context.Background(), &sophiapb.ShowIdentityRequest{
 		Uuid: "show-uuid-42",
 	})
 	if err != nil {
@@ -262,7 +263,7 @@ func TestShowIdentityNotFound(t *testing.T) {
 	client, cleanup := startTestServer(t, root)
 	defer cleanup()
 
-	_, err := client.ShowIdentity(context.Background(), &pb.ShowIdentityRequest{
+	_, err := client.ShowIdentity(context.Background(), &sophiapb.ShowIdentityRequest{
 		Uuid: "nonexistent",
 	})
 	if err == nil {
@@ -277,7 +278,7 @@ func TestPinVersion(t *testing.T) {
 	client, cleanup := startTestServer(t, root)
 	defer cleanup()
 
-	resp, err := client.PinVersion(context.Background(), &pb.PinVersionRequest{
+	resp, err := client.PinVersion(context.Background(), &sophiapb.PinVersionRequest{
 		Uuid:          "pin-uuid-99",
 		BinaryVersion: "2.0.0",
 		GitTag:        "v2.0.0",
@@ -300,7 +301,7 @@ func TestPinVersionNotFound(t *testing.T) {
 	client, cleanup := startTestServer(t, root)
 	defer cleanup()
 
-	_, err := client.PinVersion(context.Background(), &pb.PinVersionRequest{
+	_, err := client.PinVersion(context.Background(), &sophiapb.PinVersionRequest{
 		Uuid: "nonexistent",
 	})
 	if err == nil {

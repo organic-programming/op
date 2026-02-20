@@ -23,5 +23,5 @@ func main() {
 
 func init() {
 	// Ensure clean error output without log prefixes.
-	fmt.Sprintf("") //nolint - keep init for future use
+	_ = fmt.Sprintf("") //nolint - keep init for future use
 }

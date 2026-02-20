@@ -8,11 +8,12 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.4
-// source: op/v1/op.proto
+// source: protos/op/v1/op.proto
 
 package opv1
 
 import (
+	v1 "github.com/organic-programming/sophia-who/gen/go/sophia_who/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -36,7 +37,7 @@ type DiscoverRequest struct {
 
 func (x *DiscoverRequest) Reset() {
 	*x = DiscoverRequest{}
-	mi := &file_op_v1_op_proto_msgTypes[0]
+	mi := &file_protos_op_v1_op_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +49,7 @@ func (x *DiscoverRequest) String() string {
 func (*DiscoverRequest) ProtoMessage() {}
 
 func (x *DiscoverRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[0]
+	mi := &file_protos_op_v1_op_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +62,7 @@ func (x *DiscoverRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverRequest) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{0}
+	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DiscoverRequest) GetRootDir() string {
@@ -81,7 +82,7 @@ type DiscoverResponse struct {
 
 func (x *DiscoverResponse) Reset() {
 	*x = DiscoverResponse{}
-	mi := &file_op_v1_op_proto_msgTypes[1]
+	mi := &file_protos_op_v1_op_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -93,7 +94,7 @@ func (x *DiscoverResponse) String() string {
 func (*DiscoverResponse) ProtoMessage() {}
 
 func (x *DiscoverResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[1]
+	mi := &file_protos_op_v1_op_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -106,7 +107,7 @@ func (x *DiscoverResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverResponse.ProtoReflect.Descriptor instead.
 func (*DiscoverResponse) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{1}
+	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *DiscoverResponse) GetEntries() []*HolonEntry {
@@ -125,7 +126,7 @@ func (x *DiscoverResponse) GetPathBinaries() []string {
 
 type HolonEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identity      *HolonIdentity         `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	Identity      *v1.HolonIdentity      `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
 	Origin        string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"` // "local" or "cached"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -133,7 +134,7 @@ type HolonEntry struct {
 
 func (x *HolonEntry) Reset() {
 	*x = HolonEntry{}
-	mi := &file_op_v1_op_proto_msgTypes[2]
+	mi := &file_protos_op_v1_op_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -145,7 +146,7 @@ func (x *HolonEntry) String() string {
 func (*HolonEntry) ProtoMessage() {}
 
 func (x *HolonEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[2]
+	mi := &file_protos_op_v1_op_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -158,10 +159,10 @@ func (x *HolonEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HolonEntry.ProtoReflect.Descriptor instead.
 func (*HolonEntry) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{2}
+	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *HolonEntry) GetIdentity() *HolonIdentity {
+func (x *HolonEntry) GetIdentity() *v1.HolonIdentity {
 	if x != nil {
 		return x.Identity
 	}
@@ -185,7 +186,7 @@ type InvokeRequest struct {
 
 func (x *InvokeRequest) Reset() {
 	*x = InvokeRequest{}
-	mi := &file_op_v1_op_proto_msgTypes[3]
+	mi := &file_protos_op_v1_op_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -197,7 +198,7 @@ func (x *InvokeRequest) String() string {
 func (*InvokeRequest) ProtoMessage() {}
 
 func (x *InvokeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[3]
+	mi := &file_protos_op_v1_op_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -210,7 +211,7 @@ func (x *InvokeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeRequest.ProtoReflect.Descriptor instead.
 func (*InvokeRequest) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{3}
+	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *InvokeRequest) GetHolon() string {
@@ -238,7 +239,7 @@ type InvokeResponse struct {
 
 func (x *InvokeResponse) Reset() {
 	*x = InvokeResponse{}
-	mi := &file_op_v1_op_proto_msgTypes[4]
+	mi := &file_protos_op_v1_op_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -250,7 +251,7 @@ func (x *InvokeResponse) String() string {
 func (*InvokeResponse) ProtoMessage() {}
 
 func (x *InvokeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[4]
+	mi := &file_protos_op_v1_op_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -263,7 +264,7 @@ func (x *InvokeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeResponse.ProtoReflect.Descriptor instead.
 func (*InvokeResponse) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{4}
+	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *InvokeResponse) GetExitCode() int32 {
@@ -287,727 +288,19 @@ func (x *InvokeResponse) GetStderr() string {
 	return ""
 }
 
-type CreateIdentityRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	GivenName      string                 `protobuf:"bytes,1,opt,name=given_name,json=givenName,proto3" json:"given_name,omitempty"`
-	FamilyName     string                 `protobuf:"bytes,2,opt,name=family_name,json=familyName,proto3" json:"family_name,omitempty"`
-	Motto          string                 `protobuf:"bytes,3,opt,name=motto,proto3" json:"motto,omitempty"`
-	Composer       string                 `protobuf:"bytes,4,opt,name=composer,proto3" json:"composer,omitempty"`
-	Clade          string                 `protobuf:"bytes,5,opt,name=clade,proto3" json:"clade,omitempty"`
-	Lang           string                 `protobuf:"bytes,6,opt,name=lang,proto3" json:"lang,omitempty"`
-	Aliases        []string               `protobuf:"bytes,7,rep,name=aliases,proto3" json:"aliases,omitempty"`
-	WrappedLicense string                 `protobuf:"bytes,8,opt,name=wrapped_license,json=wrappedLicense,proto3" json:"wrapped_license,omitempty"`
-	Reproduction   string                 `protobuf:"bytes,9,opt,name=reproduction,proto3" json:"reproduction,omitempty"`
-	OutputDir      string                 `protobuf:"bytes,10,opt,name=output_dir,json=outputDir,proto3" json:"output_dir,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
+var File_protos_op_v1_op_proto protoreflect.FileDescriptor
 
-func (x *CreateIdentityRequest) Reset() {
-	*x = CreateIdentityRequest{}
-	mi := &file_op_v1_op_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateIdentityRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateIdentityRequest) ProtoMessage() {}
-
-func (x *CreateIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateIdentityRequest.ProtoReflect.Descriptor instead.
-func (*CreateIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *CreateIdentityRequest) GetGivenName() string {
-	if x != nil {
-		return x.GivenName
-	}
-	return ""
-}
-
-func (x *CreateIdentityRequest) GetFamilyName() string {
-	if x != nil {
-		return x.FamilyName
-	}
-	return ""
-}
-
-func (x *CreateIdentityRequest) GetMotto() string {
-	if x != nil {
-		return x.Motto
-	}
-	return ""
-}
-
-func (x *CreateIdentityRequest) GetComposer() string {
-	if x != nil {
-		return x.Composer
-	}
-	return ""
-}
-
-func (x *CreateIdentityRequest) GetClade() string {
-	if x != nil {
-		return x.Clade
-	}
-	return ""
-}
-
-func (x *CreateIdentityRequest) GetLang() string {
-	if x != nil {
-		return x.Lang
-	}
-	return ""
-}
-
-func (x *CreateIdentityRequest) GetAliases() []string {
-	if x != nil {
-		return x.Aliases
-	}
-	return nil
-}
-
-func (x *CreateIdentityRequest) GetWrappedLicense() string {
-	if x != nil {
-		return x.WrappedLicense
-	}
-	return ""
-}
-
-func (x *CreateIdentityRequest) GetReproduction() string {
-	if x != nil {
-		return x.Reproduction
-	}
-	return ""
-}
-
-func (x *CreateIdentityRequest) GetOutputDir() string {
-	if x != nil {
-		return x.OutputDir
-	}
-	return ""
-}
-
-type CreateIdentityResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identity      *HolonIdentity         `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	FilePath      string                 `protobuf:"bytes,2,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateIdentityResponse) Reset() {
-	*x = CreateIdentityResponse{}
-	mi := &file_op_v1_op_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateIdentityResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateIdentityResponse) ProtoMessage() {}
-
-func (x *CreateIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateIdentityResponse.ProtoReflect.Descriptor instead.
-func (*CreateIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *CreateIdentityResponse) GetIdentity() *HolonIdentity {
-	if x != nil {
-		return x.Identity
-	}
-	return nil
-}
-
-func (x *CreateIdentityResponse) GetFilePath() string {
-	if x != nil {
-		return x.FilePath
-	}
-	return ""
-}
-
-type ListIdentitiesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RootDir       string                 `protobuf:"bytes,1,opt,name=root_dir,json=rootDir,proto3" json:"root_dir,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListIdentitiesRequest) Reset() {
-	*x = ListIdentitiesRequest{}
-	mi := &file_op_v1_op_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListIdentitiesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListIdentitiesRequest) ProtoMessage() {}
-
-func (x *ListIdentitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListIdentitiesRequest.ProtoReflect.Descriptor instead.
-func (*ListIdentitiesRequest) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *ListIdentitiesRequest) GetRootDir() string {
-	if x != nil {
-		return x.RootDir
-	}
-	return ""
-}
-
-type ListIdentitiesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Entries       []*HolonEntry          `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListIdentitiesResponse) Reset() {
-	*x = ListIdentitiesResponse{}
-	mi := &file_op_v1_op_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListIdentitiesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListIdentitiesResponse) ProtoMessage() {}
-
-func (x *ListIdentitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListIdentitiesResponse.ProtoReflect.Descriptor instead.
-func (*ListIdentitiesResponse) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *ListIdentitiesResponse) GetEntries() []*HolonEntry {
-	if x != nil {
-		return x.Entries
-	}
-	return nil
-}
-
-type ShowIdentityRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Uuid          string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ShowIdentityRequest) Reset() {
-	*x = ShowIdentityRequest{}
-	mi := &file_op_v1_op_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ShowIdentityRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ShowIdentityRequest) ProtoMessage() {}
-
-func (x *ShowIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ShowIdentityRequest.ProtoReflect.Descriptor instead.
-func (*ShowIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *ShowIdentityRequest) GetUuid() string {
-	if x != nil {
-		return x.Uuid
-	}
-	return ""
-}
-
-type ShowIdentityResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identity      *HolonIdentity         `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	FilePath      string                 `protobuf:"bytes,2,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
-	RawContent    string                 `protobuf:"bytes,3,opt,name=raw_content,json=rawContent,proto3" json:"raw_content,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ShowIdentityResponse) Reset() {
-	*x = ShowIdentityResponse{}
-	mi := &file_op_v1_op_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ShowIdentityResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ShowIdentityResponse) ProtoMessage() {}
-
-func (x *ShowIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ShowIdentityResponse.ProtoReflect.Descriptor instead.
-func (*ShowIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *ShowIdentityResponse) GetIdentity() *HolonIdentity {
-	if x != nil {
-		return x.Identity
-	}
-	return nil
-}
-
-func (x *ShowIdentityResponse) GetFilePath() string {
-	if x != nil {
-		return x.FilePath
-	}
-	return ""
-}
-
-func (x *ShowIdentityResponse) GetRawContent() string {
-	if x != nil {
-		return x.RawContent
-	}
-	return ""
-}
-
-type PinVersionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Uuid          string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	BinaryPath    string                 `protobuf:"bytes,2,opt,name=binary_path,json=binaryPath,proto3" json:"binary_path,omitempty"`
-	BinaryVersion string                 `protobuf:"bytes,3,opt,name=binary_version,json=binaryVersion,proto3" json:"binary_version,omitempty"`
-	GitTag        string                 `protobuf:"bytes,4,opt,name=git_tag,json=gitTag,proto3" json:"git_tag,omitempty"`
-	GitCommit     string                 `protobuf:"bytes,5,opt,name=git_commit,json=gitCommit,proto3" json:"git_commit,omitempty"`
-	Os            string                 `protobuf:"bytes,6,opt,name=os,proto3" json:"os,omitempty"`
-	Arch          string                 `protobuf:"bytes,7,opt,name=arch,proto3" json:"arch,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PinVersionRequest) Reset() {
-	*x = PinVersionRequest{}
-	mi := &file_op_v1_op_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PinVersionRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PinVersionRequest) ProtoMessage() {}
-
-func (x *PinVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PinVersionRequest.ProtoReflect.Descriptor instead.
-func (*PinVersionRequest) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *PinVersionRequest) GetUuid() string {
-	if x != nil {
-		return x.Uuid
-	}
-	return ""
-}
-
-func (x *PinVersionRequest) GetBinaryPath() string {
-	if x != nil {
-		return x.BinaryPath
-	}
-	return ""
-}
-
-func (x *PinVersionRequest) GetBinaryVersion() string {
-	if x != nil {
-		return x.BinaryVersion
-	}
-	return ""
-}
-
-func (x *PinVersionRequest) GetGitTag() string {
-	if x != nil {
-		return x.GitTag
-	}
-	return ""
-}
-
-func (x *PinVersionRequest) GetGitCommit() string {
-	if x != nil {
-		return x.GitCommit
-	}
-	return ""
-}
-
-func (x *PinVersionRequest) GetOs() string {
-	if x != nil {
-		return x.Os
-	}
-	return ""
-}
-
-func (x *PinVersionRequest) GetArch() string {
-	if x != nil {
-		return x.Arch
-	}
-	return ""
-}
-
-type PinVersionResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identity      *HolonIdentity         `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PinVersionResponse) Reset() {
-	*x = PinVersionResponse{}
-	mi := &file_op_v1_op_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PinVersionResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PinVersionResponse) ProtoMessage() {}
-
-func (x *PinVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PinVersionResponse.ProtoReflect.Descriptor instead.
-func (*PinVersionResponse) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *PinVersionResponse) GetIdentity() *HolonIdentity {
-	if x != nil {
-		return x.Identity
-	}
-	return nil
-}
-
-type HolonIdentity struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Uuid           string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	GivenName      string                 `protobuf:"bytes,2,opt,name=given_name,json=givenName,proto3" json:"given_name,omitempty"`
-	FamilyName     string                 `protobuf:"bytes,3,opt,name=family_name,json=familyName,proto3" json:"family_name,omitempty"`
-	Motto          string                 `protobuf:"bytes,4,opt,name=motto,proto3" json:"motto,omitempty"`
-	Composer       string                 `protobuf:"bytes,5,opt,name=composer,proto3" json:"composer,omitempty"`
-	Clade          string                 `protobuf:"bytes,6,opt,name=clade,proto3" json:"clade,omitempty"`
-	Status         string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	Born           string                 `protobuf:"bytes,8,opt,name=born,proto3" json:"born,omitempty"`
-	Parents        []string               `protobuf:"bytes,9,rep,name=parents,proto3" json:"parents,omitempty"`
-	Reproduction   string                 `protobuf:"bytes,10,opt,name=reproduction,proto3" json:"reproduction,omitempty"`
-	BinaryPath     string                 `protobuf:"bytes,11,opt,name=binary_path,json=binaryPath,proto3" json:"binary_path,omitempty"`
-	BinaryVersion  string                 `protobuf:"bytes,12,opt,name=binary_version,json=binaryVersion,proto3" json:"binary_version,omitempty"`
-	GitTag         string                 `protobuf:"bytes,13,opt,name=git_tag,json=gitTag,proto3" json:"git_tag,omitempty"`
-	GitCommit      string                 `protobuf:"bytes,14,opt,name=git_commit,json=gitCommit,proto3" json:"git_commit,omitempty"`
-	Os             string                 `protobuf:"bytes,15,opt,name=os,proto3" json:"os,omitempty"`
-	Arch           string                 `protobuf:"bytes,16,opt,name=arch,proto3" json:"arch,omitempty"`
-	Dependencies   []string               `protobuf:"bytes,17,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
-	Aliases        []string               `protobuf:"bytes,18,rep,name=aliases,proto3" json:"aliases,omitempty"`
-	WrappedLicense string                 `protobuf:"bytes,19,opt,name=wrapped_license,json=wrappedLicense,proto3" json:"wrapped_license,omitempty"`
-	GeneratedBy    string                 `protobuf:"bytes,20,opt,name=generated_by,json=generatedBy,proto3" json:"generated_by,omitempty"`
-	Lang           string                 `protobuf:"bytes,21,opt,name=lang,proto3" json:"lang,omitempty"`
-	ProtoStatus    string                 `protobuf:"bytes,22,opt,name=proto_status,json=protoStatus,proto3" json:"proto_status,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *HolonIdentity) Reset() {
-	*x = HolonIdentity{}
-	mi := &file_op_v1_op_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HolonIdentity) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HolonIdentity) ProtoMessage() {}
-
-func (x *HolonIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_op_v1_op_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HolonIdentity.ProtoReflect.Descriptor instead.
-func (*HolonIdentity) Descriptor() ([]byte, []int) {
-	return file_op_v1_op_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *HolonIdentity) GetUuid() string {
-	if x != nil {
-		return x.Uuid
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetGivenName() string {
-	if x != nil {
-		return x.GivenName
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetFamilyName() string {
-	if x != nil {
-		return x.FamilyName
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetMotto() string {
-	if x != nil {
-		return x.Motto
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetComposer() string {
-	if x != nil {
-		return x.Composer
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetClade() string {
-	if x != nil {
-		return x.Clade
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetBorn() string {
-	if x != nil {
-		return x.Born
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetParents() []string {
-	if x != nil {
-		return x.Parents
-	}
-	return nil
-}
-
-func (x *HolonIdentity) GetReproduction() string {
-	if x != nil {
-		return x.Reproduction
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetBinaryPath() string {
-	if x != nil {
-		return x.BinaryPath
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetBinaryVersion() string {
-	if x != nil {
-		return x.BinaryVersion
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetGitTag() string {
-	if x != nil {
-		return x.GitTag
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetGitCommit() string {
-	if x != nil {
-		return x.GitCommit
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetOs() string {
-	if x != nil {
-		return x.Os
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetArch() string {
-	if x != nil {
-		return x.Arch
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetDependencies() []string {
-	if x != nil {
-		return x.Dependencies
-	}
-	return nil
-}
-
-func (x *HolonIdentity) GetAliases() []string {
-	if x != nil {
-		return x.Aliases
-	}
-	return nil
-}
-
-func (x *HolonIdentity) GetWrappedLicense() string {
-	if x != nil {
-		return x.WrappedLicense
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetGeneratedBy() string {
-	if x != nil {
-		return x.GeneratedBy
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetLang() string {
-	if x != nil {
-		return x.Lang
-	}
-	return ""
-}
-
-func (x *HolonIdentity) GetProtoStatus() string {
-	if x != nil {
-		return x.ProtoStatus
-	}
-	return ""
-}
-
-var File_op_v1_op_proto protoreflect.FileDescriptor
-
-const file_op_v1_op_proto_rawDesc = "" +
+const file_protos_op_v1_op_proto_rawDesc = "" +
 	"\n" +
-	"\x0eop/v1/op.proto\x12\x05op.v1\",\n" +
+	"\x15protos/op/v1/op.proto\x12\x05op.v1\x1a\x1esophia_who/v1/sophia_who.proto\",\n" +
 	"\x0fDiscoverRequest\x12\x19\n" +
 	"\broot_dir\x18\x01 \x01(\tR\arootDir\"d\n" +
 	"\x10DiscoverResponse\x12+\n" +
 	"\aentries\x18\x01 \x03(\v2\x11.op.v1.HolonEntryR\aentries\x12#\n" +
-	"\rpath_binaries\x18\x02 \x03(\tR\fpathBinaries\"V\n" +
+	"\rpath_binaries\x18\x02 \x03(\tR\fpathBinaries\"^\n" +
 	"\n" +
-	"HolonEntry\x120\n" +
-	"\bidentity\x18\x01 \x01(\v2\x14.op.v1.HolonIdentityR\bidentity\x12\x16\n" +
+	"HolonEntry\x128\n" +
+	"\bidentity\x18\x01 \x01(\v2\x1c.sophia_who.v1.HolonIdentityR\bidentity\x12\x16\n" +
 	"\x06origin\x18\x02 \x01(\tR\x06origin\"9\n" +
 	"\rInvokeRequest\x12\x14\n" +
 	"\x05holon\x18\x01 \x01(\tR\x05holon\x12\x12\n" +
@@ -1015,160 +308,87 @@ const file_op_v1_op_proto_rawDesc = "" +
 	"\x0eInvokeResponse\x12\x1b\n" +
 	"\texit_code\x18\x01 \x01(\x05R\bexitCode\x12\x16\n" +
 	"\x06stdout\x18\x02 \x01(\tR\x06stdout\x12\x16\n" +
-	"\x06stderr\x18\x03 \x01(\tR\x06stderr\"\xb9\x02\n" +
-	"\x15CreateIdentityRequest\x12\x1d\n" +
-	"\n" +
-	"given_name\x18\x01 \x01(\tR\tgivenName\x12\x1f\n" +
-	"\vfamily_name\x18\x02 \x01(\tR\n" +
-	"familyName\x12\x14\n" +
-	"\x05motto\x18\x03 \x01(\tR\x05motto\x12\x1a\n" +
-	"\bcomposer\x18\x04 \x01(\tR\bcomposer\x12\x14\n" +
-	"\x05clade\x18\x05 \x01(\tR\x05clade\x12\x12\n" +
-	"\x04lang\x18\x06 \x01(\tR\x04lang\x12\x18\n" +
-	"\aaliases\x18\a \x03(\tR\aaliases\x12'\n" +
-	"\x0fwrapped_license\x18\b \x01(\tR\x0ewrappedLicense\x12\"\n" +
-	"\freproduction\x18\t \x01(\tR\freproduction\x12\x1d\n" +
-	"\n" +
-	"output_dir\x18\n" +
-	" \x01(\tR\toutputDir\"g\n" +
-	"\x16CreateIdentityResponse\x120\n" +
-	"\bidentity\x18\x01 \x01(\v2\x14.op.v1.HolonIdentityR\bidentity\x12\x1b\n" +
-	"\tfile_path\x18\x02 \x01(\tR\bfilePath\"2\n" +
-	"\x15ListIdentitiesRequest\x12\x19\n" +
-	"\broot_dir\x18\x01 \x01(\tR\arootDir\"E\n" +
-	"\x16ListIdentitiesResponse\x12+\n" +
-	"\aentries\x18\x01 \x03(\v2\x11.op.v1.HolonEntryR\aentries\")\n" +
-	"\x13ShowIdentityRequest\x12\x12\n" +
-	"\x04uuid\x18\x01 \x01(\tR\x04uuid\"\x86\x01\n" +
-	"\x14ShowIdentityResponse\x120\n" +
-	"\bidentity\x18\x01 \x01(\v2\x14.op.v1.HolonIdentityR\bidentity\x12\x1b\n" +
-	"\tfile_path\x18\x02 \x01(\tR\bfilePath\x12\x1f\n" +
-	"\vraw_content\x18\x03 \x01(\tR\n" +
-	"rawContent\"\xcb\x01\n" +
-	"\x11PinVersionRequest\x12\x12\n" +
-	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1f\n" +
-	"\vbinary_path\x18\x02 \x01(\tR\n" +
-	"binaryPath\x12%\n" +
-	"\x0ebinary_version\x18\x03 \x01(\tR\rbinaryVersion\x12\x17\n" +
-	"\agit_tag\x18\x04 \x01(\tR\x06gitTag\x12\x1d\n" +
-	"\n" +
-	"git_commit\x18\x05 \x01(\tR\tgitCommit\x12\x0e\n" +
-	"\x02os\x18\x06 \x01(\tR\x02os\x12\x12\n" +
-	"\x04arch\x18\a \x01(\tR\x04arch\"F\n" +
-	"\x12PinVersionResponse\x120\n" +
-	"\bidentity\x18\x01 \x01(\v2\x14.op.v1.HolonIdentityR\bidentity\"\xfa\x04\n" +
-	"\rHolonIdentity\x12\x12\n" +
-	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1d\n" +
-	"\n" +
-	"given_name\x18\x02 \x01(\tR\tgivenName\x12\x1f\n" +
-	"\vfamily_name\x18\x03 \x01(\tR\n" +
-	"familyName\x12\x14\n" +
-	"\x05motto\x18\x04 \x01(\tR\x05motto\x12\x1a\n" +
-	"\bcomposer\x18\x05 \x01(\tR\bcomposer\x12\x14\n" +
-	"\x05clade\x18\x06 \x01(\tR\x05clade\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\x12\x12\n" +
-	"\x04born\x18\b \x01(\tR\x04born\x12\x18\n" +
-	"\aparents\x18\t \x03(\tR\aparents\x12\"\n" +
-	"\freproduction\x18\n" +
-	" \x01(\tR\freproduction\x12\x1f\n" +
-	"\vbinary_path\x18\v \x01(\tR\n" +
-	"binaryPath\x12%\n" +
-	"\x0ebinary_version\x18\f \x01(\tR\rbinaryVersion\x12\x17\n" +
-	"\agit_tag\x18\r \x01(\tR\x06gitTag\x12\x1d\n" +
-	"\n" +
-	"git_commit\x18\x0e \x01(\tR\tgitCommit\x12\x0e\n" +
-	"\x02os\x18\x0f \x01(\tR\x02os\x12\x12\n" +
-	"\x04arch\x18\x10 \x01(\tR\x04arch\x12\"\n" +
-	"\fdependencies\x18\x11 \x03(\tR\fdependencies\x12\x18\n" +
-	"\aaliases\x18\x12 \x03(\tR\aaliases\x12'\n" +
-	"\x0fwrapped_license\x18\x13 \x01(\tR\x0ewrappedLicense\x12!\n" +
-	"\fgenerated_by\x18\x14 \x01(\tR\vgeneratedBy\x12\x12\n" +
-	"\x04lang\x18\x15 \x01(\tR\x04lang\x12!\n" +
-	"\fproto_status\x18\x16 \x01(\tR\vprotoStatus2\xa9\x03\n" +
+	"\x06stderr\x18\x03 \x01(\tR\x06stderr2\xe9\x03\n" +
 	"\tOPService\x12;\n" +
 	"\bDiscover\x12\x16.op.v1.DiscoverRequest\x1a\x17.op.v1.DiscoverResponse\x125\n" +
-	"\x06Invoke\x12\x14.op.v1.InvokeRequest\x1a\x15.op.v1.InvokeResponse\x12M\n" +
-	"\x0eCreateIdentity\x12\x1c.op.v1.CreateIdentityRequest\x1a\x1d.op.v1.CreateIdentityResponse\x12M\n" +
-	"\x0eListIdentities\x12\x1c.op.v1.ListIdentitiesRequest\x1a\x1d.op.v1.ListIdentitiesResponse\x12G\n" +
-	"\fShowIdentity\x12\x1a.op.v1.ShowIdentityRequest\x1a\x1b.op.v1.ShowIdentityResponse\x12A\n" +
+	"\x06Invoke\x12\x14.op.v1.InvokeRequest\x1a\x15.op.v1.InvokeResponse\x12]\n" +
+	"\x0eCreateIdentity\x12$.sophia_who.v1.CreateIdentityRequest\x1a%.sophia_who.v1.CreateIdentityResponse\x12]\n" +
+	"\x0eListIdentities\x12$.sophia_who.v1.ListIdentitiesRequest\x1a%.sophia_who.v1.ListIdentitiesResponse\x12W\n" +
+	"\fShowIdentity\x12\".sophia_who.v1.ShowIdentityRequest\x1a#.sophia_who.v1.ShowIdentityResponse\x12Q\n" +
 	"\n" +
-	"PinVersion\x12\x18.op.v1.PinVersionRequest\x1a\x19.op.v1.PinVersionResponseB;Z9github.com/organic-programming/grace-op/gen/go/op/v1;opv1b\x06proto3"
+	"PinVersion\x12 .sophia_who.v1.PinVersionRequest\x1a!.sophia_who.v1.PinVersionResponseB;Z9github.com/organic-programming/grace-op/gen/go/op/v1;opv1b\x06proto3"
 
 var (
-	file_op_v1_op_proto_rawDescOnce sync.Once
-	file_op_v1_op_proto_rawDescData []byte
+	file_protos_op_v1_op_proto_rawDescOnce sync.Once
+	file_protos_op_v1_op_proto_rawDescData []byte
 )
 
-func file_op_v1_op_proto_rawDescGZIP() []byte {
-	file_op_v1_op_proto_rawDescOnce.Do(func() {
-		file_op_v1_op_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_op_v1_op_proto_rawDesc), len(file_op_v1_op_proto_rawDesc)))
+func file_protos_op_v1_op_proto_rawDescGZIP() []byte {
+	file_protos_op_v1_op_proto_rawDescOnce.Do(func() {
+		file_protos_op_v1_op_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_protos_op_v1_op_proto_rawDesc), len(file_protos_op_v1_op_proto_rawDesc)))
 	})
-	return file_op_v1_op_proto_rawDescData
+	return file_protos_op_v1_op_proto_rawDescData
 }
 
-var file_op_v1_op_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
-var file_op_v1_op_proto_goTypes = []any{
-	(*DiscoverRequest)(nil),        // 0: op.v1.DiscoverRequest
-	(*DiscoverResponse)(nil),       // 1: op.v1.DiscoverResponse
-	(*HolonEntry)(nil),             // 2: op.v1.HolonEntry
-	(*InvokeRequest)(nil),          // 3: op.v1.InvokeRequest
-	(*InvokeResponse)(nil),         // 4: op.v1.InvokeResponse
-	(*CreateIdentityRequest)(nil),  // 5: op.v1.CreateIdentityRequest
-	(*CreateIdentityResponse)(nil), // 6: op.v1.CreateIdentityResponse
-	(*ListIdentitiesRequest)(nil),  // 7: op.v1.ListIdentitiesRequest
-	(*ListIdentitiesResponse)(nil), // 8: op.v1.ListIdentitiesResponse
-	(*ShowIdentityRequest)(nil),    // 9: op.v1.ShowIdentityRequest
-	(*ShowIdentityResponse)(nil),   // 10: op.v1.ShowIdentityResponse
-	(*PinVersionRequest)(nil),      // 11: op.v1.PinVersionRequest
-	(*PinVersionResponse)(nil),     // 12: op.v1.PinVersionResponse
-	(*HolonIdentity)(nil),          // 13: op.v1.HolonIdentity
+var file_protos_op_v1_op_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_protos_op_v1_op_proto_goTypes = []any{
+	(*DiscoverRequest)(nil),           // 0: op.v1.DiscoverRequest
+	(*DiscoverResponse)(nil),          // 1: op.v1.DiscoverResponse
+	(*HolonEntry)(nil),                // 2: op.v1.HolonEntry
+	(*InvokeRequest)(nil),             // 3: op.v1.InvokeRequest
+	(*InvokeResponse)(nil),            // 4: op.v1.InvokeResponse
+	(*v1.HolonIdentity)(nil),          // 5: sophia_who.v1.HolonIdentity
+	(*v1.CreateIdentityRequest)(nil),  // 6: sophia_who.v1.CreateIdentityRequest
+	(*v1.ListIdentitiesRequest)(nil),  // 7: sophia_who.v1.ListIdentitiesRequest
+	(*v1.ShowIdentityRequest)(nil),    // 8: sophia_who.v1.ShowIdentityRequest
+	(*v1.PinVersionRequest)(nil),      // 9: sophia_who.v1.PinVersionRequest
+	(*v1.CreateIdentityResponse)(nil), // 10: sophia_who.v1.CreateIdentityResponse
+	(*v1.ListIdentitiesResponse)(nil), // 11: sophia_who.v1.ListIdentitiesResponse
+	(*v1.ShowIdentityResponse)(nil),   // 12: sophia_who.v1.ShowIdentityResponse
+	(*v1.PinVersionResponse)(nil),     // 13: sophia_who.v1.PinVersionResponse
 }
-var file_op_v1_op_proto_depIdxs = []int32{
+var file_protos_op_v1_op_proto_depIdxs = []int32{
 	2,  // 0: op.v1.DiscoverResponse.entries:type_name -> op.v1.HolonEntry
-	13, // 1: op.v1.HolonEntry.identity:type_name -> op.v1.HolonIdentity
-	13, // 2: op.v1.CreateIdentityResponse.identity:type_name -> op.v1.HolonIdentity
-	2,  // 3: op.v1.ListIdentitiesResponse.entries:type_name -> op.v1.HolonEntry
-	13, // 4: op.v1.ShowIdentityResponse.identity:type_name -> op.v1.HolonIdentity
-	13, // 5: op.v1.PinVersionResponse.identity:type_name -> op.v1.HolonIdentity
-	0,  // 6: op.v1.OPService.Discover:input_type -> op.v1.DiscoverRequest
-	3,  // 7: op.v1.OPService.Invoke:input_type -> op.v1.InvokeRequest
-	5,  // 8: op.v1.OPService.CreateIdentity:input_type -> op.v1.CreateIdentityRequest
-	7,  // 9: op.v1.OPService.ListIdentities:input_type -> op.v1.ListIdentitiesRequest
-	9,  // 10: op.v1.OPService.ShowIdentity:input_type -> op.v1.ShowIdentityRequest
-	11, // 11: op.v1.OPService.PinVersion:input_type -> op.v1.PinVersionRequest
-	1,  // 12: op.v1.OPService.Discover:output_type -> op.v1.DiscoverResponse
-	4,  // 13: op.v1.OPService.Invoke:output_type -> op.v1.InvokeResponse
-	6,  // 14: op.v1.OPService.CreateIdentity:output_type -> op.v1.CreateIdentityResponse
-	8,  // 15: op.v1.OPService.ListIdentities:output_type -> op.v1.ListIdentitiesResponse
-	10, // 16: op.v1.OPService.ShowIdentity:output_type -> op.v1.ShowIdentityResponse
-	12, // 17: op.v1.OPService.PinVersion:output_type -> op.v1.PinVersionResponse
-	12, // [12:18] is the sub-list for method output_type
-	6,  // [6:12] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	5,  // 1: op.v1.HolonEntry.identity:type_name -> sophia_who.v1.HolonIdentity
+	0,  // 2: op.v1.OPService.Discover:input_type -> op.v1.DiscoverRequest
+	3,  // 3: op.v1.OPService.Invoke:input_type -> op.v1.InvokeRequest
+	6,  // 4: op.v1.OPService.CreateIdentity:input_type -> sophia_who.v1.CreateIdentityRequest
+	7,  // 5: op.v1.OPService.ListIdentities:input_type -> sophia_who.v1.ListIdentitiesRequest
+	8,  // 6: op.v1.OPService.ShowIdentity:input_type -> sophia_who.v1.ShowIdentityRequest
+	9,  // 7: op.v1.OPService.PinVersion:input_type -> sophia_who.v1.PinVersionRequest
+	1,  // 8: op.v1.OPService.Discover:output_type -> op.v1.DiscoverResponse
+	4,  // 9: op.v1.OPService.Invoke:output_type -> op.v1.InvokeResponse
+	10, // 10: op.v1.OPService.CreateIdentity:output_type -> sophia_who.v1.CreateIdentityResponse
+	11, // 11: op.v1.OPService.ListIdentities:output_type -> sophia_who.v1.ListIdentitiesResponse
+	12, // 12: op.v1.OPService.ShowIdentity:output_type -> sophia_who.v1.ShowIdentityResponse
+	13, // 13: op.v1.OPService.PinVersion:output_type -> sophia_who.v1.PinVersionResponse
+	8,  // [8:14] is the sub-list for method output_type
+	2,  // [2:8] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_op_v1_op_proto_init() }
-func file_op_v1_op_proto_init() {
-	if File_op_v1_op_proto != nil {
+func init() { file_protos_op_v1_op_proto_init() }
+func file_protos_op_v1_op_proto_init() {
+	if File_protos_op_v1_op_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_op_v1_op_proto_rawDesc), len(file_op_v1_op_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protos_op_v1_op_proto_rawDesc), len(file_protos_op_v1_op_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_op_v1_op_proto_goTypes,
-		DependencyIndexes: file_op_v1_op_proto_depIdxs,
-		MessageInfos:      file_op_v1_op_proto_msgTypes,
+		GoTypes:           file_protos_op_v1_op_proto_goTypes,
+		DependencyIndexes: file_protos_op_v1_op_proto_depIdxs,
+		MessageInfos:      file_protos_op_v1_op_proto_msgTypes,
 	}.Build()
-	File_op_v1_op_proto = out.File
-	file_op_v1_op_proto_goTypes = nil
-	file_op_v1_op_proto_depIdxs = nil
+	File_protos_op_v1_op_proto = out.File
+	file_protos_op_v1_op_proto_goTypes = nil
+	file_protos_op_v1_op_proto_depIdxs = nil
 }

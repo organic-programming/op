@@ -8,12 +8,13 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v6.33.4
-// source: op/v1/op.proto
+// source: protos/op/v1/op.proto
 
 package opv1
 
 import (
 	context "context"
+	v1 "github.com/organic-programming/sophia-who/gen/go/sophia_who/v1"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -44,13 +45,13 @@ type OPServiceClient interface {
 	// Invoke dispatches a command to a holon by name.
 	Invoke(ctx context.Context, in *InvokeRequest, opts ...grpc.CallOption) (*InvokeResponse, error)
 	// CreateIdentity creates a new holon identity.
-	CreateIdentity(ctx context.Context, in *CreateIdentityRequest, opts ...grpc.CallOption) (*CreateIdentityResponse, error)
+	CreateIdentity(ctx context.Context, in *v1.CreateIdentityRequest, opts ...grpc.CallOption) (*v1.CreateIdentityResponse, error)
 	// ListIdentities lists all known holon identities.
-	ListIdentities(ctx context.Context, in *ListIdentitiesRequest, opts ...grpc.CallOption) (*ListIdentitiesResponse, error)
+	ListIdentities(ctx context.Context, in *v1.ListIdentitiesRequest, opts ...grpc.CallOption) (*v1.ListIdentitiesResponse, error)
 	// ShowIdentity retrieves a holon's identity by UUID.
-	ShowIdentity(ctx context.Context, in *ShowIdentityRequest, opts ...grpc.CallOption) (*ShowIdentityResponse, error)
+	ShowIdentity(ctx context.Context, in *v1.ShowIdentityRequest, opts ...grpc.CallOption) (*v1.ShowIdentityResponse, error)
 	// PinVersion pins version metadata to a holon.
-	PinVersion(ctx context.Context, in *PinVersionRequest, opts ...grpc.CallOption) (*PinVersionResponse, error)
+	PinVersion(ctx context.Context, in *v1.PinVersionRequest, opts ...grpc.CallOption) (*v1.PinVersionResponse, error)
 }
 
 type oPServiceClient struct {
@@ -81,9 +82,9 @@ func (c *oPServiceClient) Invoke(ctx context.Context, in *InvokeRequest, opts ..
 	return out, nil
 }
 
-func (c *oPServiceClient) CreateIdentity(ctx context.Context, in *CreateIdentityRequest, opts ...grpc.CallOption) (*CreateIdentityResponse, error) {
+func (c *oPServiceClient) CreateIdentity(ctx context.Context, in *v1.CreateIdentityRequest, opts ...grpc.CallOption) (*v1.CreateIdentityResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateIdentityResponse)
+	out := new(v1.CreateIdentityResponse)
 	err := c.cc.Invoke(ctx, OPService_CreateIdentity_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -91,9 +92,9 @@ func (c *oPServiceClient) CreateIdentity(ctx context.Context, in *CreateIdentity
 	return out, nil
 }
 
-func (c *oPServiceClient) ListIdentities(ctx context.Context, in *ListIdentitiesRequest, opts ...grpc.CallOption) (*ListIdentitiesResponse, error) {
+func (c *oPServiceClient) ListIdentities(ctx context.Context, in *v1.ListIdentitiesRequest, opts ...grpc.CallOption) (*v1.ListIdentitiesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListIdentitiesResponse)
+	out := new(v1.ListIdentitiesResponse)
 	err := c.cc.Invoke(ctx, OPService_ListIdentities_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -101,9 +102,9 @@ func (c *oPServiceClient) ListIdentities(ctx context.Context, in *ListIdentities
 	return out, nil
 }
 
-func (c *oPServiceClient) ShowIdentity(ctx context.Context, in *ShowIdentityRequest, opts ...grpc.CallOption) (*ShowIdentityResponse, error) {
+func (c *oPServiceClient) ShowIdentity(ctx context.Context, in *v1.ShowIdentityRequest, opts ...grpc.CallOption) (*v1.ShowIdentityResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ShowIdentityResponse)
+	out := new(v1.ShowIdentityResponse)
 	err := c.cc.Invoke(ctx, OPService_ShowIdentity_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -111,9 +112,9 @@ func (c *oPServiceClient) ShowIdentity(ctx context.Context, in *ShowIdentityRequ
 	return out, nil
 }
 
-func (c *oPServiceClient) PinVersion(ctx context.Context, in *PinVersionRequest, opts ...grpc.CallOption) (*PinVersionResponse, error) {
+func (c *oPServiceClient) PinVersion(ctx context.Context, in *v1.PinVersionRequest, opts ...grpc.CallOption) (*v1.PinVersionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(PinVersionResponse)
+	out := new(v1.PinVersionResponse)
 	err := c.cc.Invoke(ctx, OPService_PinVersion_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -132,13 +133,13 @@ type OPServiceServer interface {
 	// Invoke dispatches a command to a holon by name.
 	Invoke(context.Context, *InvokeRequest) (*InvokeResponse, error)
 	// CreateIdentity creates a new holon identity.
-	CreateIdentity(context.Context, *CreateIdentityRequest) (*CreateIdentityResponse, error)
+	CreateIdentity(context.Context, *v1.CreateIdentityRequest) (*v1.CreateIdentityResponse, error)
 	// ListIdentities lists all known holon identities.
-	ListIdentities(context.Context, *ListIdentitiesRequest) (*ListIdentitiesResponse, error)
+	ListIdentities(context.Context, *v1.ListIdentitiesRequest) (*v1.ListIdentitiesResponse, error)
 	// ShowIdentity retrieves a holon's identity by UUID.
-	ShowIdentity(context.Context, *ShowIdentityRequest) (*ShowIdentityResponse, error)
+	ShowIdentity(context.Context, *v1.ShowIdentityRequest) (*v1.ShowIdentityResponse, error)
 	// PinVersion pins version metadata to a holon.
-	PinVersion(context.Context, *PinVersionRequest) (*PinVersionResponse, error)
+	PinVersion(context.Context, *v1.PinVersionRequest) (*v1.PinVersionResponse, error)
 	mustEmbedUnimplementedOPServiceServer()
 }
 
@@ -155,16 +156,16 @@ func (UnimplementedOPServiceServer) Discover(context.Context, *DiscoverRequest) 
 func (UnimplementedOPServiceServer) Invoke(context.Context, *InvokeRequest) (*InvokeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Invoke not implemented")
 }
-func (UnimplementedOPServiceServer) CreateIdentity(context.Context, *CreateIdentityRequest) (*CreateIdentityResponse, error) {
+func (UnimplementedOPServiceServer) CreateIdentity(context.Context, *v1.CreateIdentityRequest) (*v1.CreateIdentityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateIdentity not implemented")
 }
-func (UnimplementedOPServiceServer) ListIdentities(context.Context, *ListIdentitiesRequest) (*ListIdentitiesResponse, error) {
+func (UnimplementedOPServiceServer) ListIdentities(context.Context, *v1.ListIdentitiesRequest) (*v1.ListIdentitiesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListIdentities not implemented")
 }
-func (UnimplementedOPServiceServer) ShowIdentity(context.Context, *ShowIdentityRequest) (*ShowIdentityResponse, error) {
+func (UnimplementedOPServiceServer) ShowIdentity(context.Context, *v1.ShowIdentityRequest) (*v1.ShowIdentityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ShowIdentity not implemented")
 }
-func (UnimplementedOPServiceServer) PinVersion(context.Context, *PinVersionRequest) (*PinVersionResponse, error) {
+func (UnimplementedOPServiceServer) PinVersion(context.Context, *v1.PinVersionRequest) (*v1.PinVersionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PinVersion not implemented")
 }
 func (UnimplementedOPServiceServer) mustEmbedUnimplementedOPServiceServer() {}
@@ -225,7 +226,7 @@ func _OPService_Invoke_Handler(srv interface{}, ctx context.Context, dec func(in
 }
 
 func _OPService_CreateIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateIdentityRequest)
+	in := new(v1.CreateIdentityRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -237,13 +238,13 @@ func _OPService_CreateIdentity_Handler(srv interface{}, ctx context.Context, dec
 		FullMethod: OPService_CreateIdentity_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OPServiceServer).CreateIdentity(ctx, req.(*CreateIdentityRequest))
+		return srv.(OPServiceServer).CreateIdentity(ctx, req.(*v1.CreateIdentityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _OPService_ListIdentities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListIdentitiesRequest)
+	in := new(v1.ListIdentitiesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -255,13 +256,13 @@ func _OPService_ListIdentities_Handler(srv interface{}, ctx context.Context, dec
 		FullMethod: OPService_ListIdentities_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OPServiceServer).ListIdentities(ctx, req.(*ListIdentitiesRequest))
+		return srv.(OPServiceServer).ListIdentities(ctx, req.(*v1.ListIdentitiesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _OPService_ShowIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ShowIdentityRequest)
+	in := new(v1.ShowIdentityRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -273,13 +274,13 @@ func _OPService_ShowIdentity_Handler(srv interface{}, ctx context.Context, dec f
 		FullMethod: OPService_ShowIdentity_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OPServiceServer).ShowIdentity(ctx, req.(*ShowIdentityRequest))
+		return srv.(OPServiceServer).ShowIdentity(ctx, req.(*v1.ShowIdentityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _OPService_PinVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PinVersionRequest)
+	in := new(v1.PinVersionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -291,7 +292,7 @@ func _OPService_PinVersion_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: OPService_PinVersion_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OPServiceServer).PinVersion(ctx, req.(*PinVersionRequest))
+		return srv.(OPServiceServer).PinVersion(ctx, req.(*v1.PinVersionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -329,5 +330,5 @@ var OPService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "op/v1/op.proto",
+	Metadata: "protos/op/v1/op.proto",
 }
