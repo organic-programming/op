@@ -8,6 +8,8 @@ syntax = "proto3";
 
 package op.v1;
 
+import "sophia_who/v1/sophia_who.proto";
+
 option go_package = "github.com/organic-programming/grace-op/gen/go/op/v1;opv1";
 
 // OPService is the unified Organic Programming dispatcher.
@@ -23,16 +25,16 @@ service OPService {
   // --- Promoted from Sophia Who? (identity management) ---
 
   // CreateIdentity creates a new holon identity.
-  rpc CreateIdentity (CreateIdentityRequest) returns (CreateIdentityResponse);
+  rpc CreateIdentity (sophia_who.v1.CreateIdentityRequest) returns (sophia_who.v1.CreateIdentityResponse);
 
   // ListIdentities lists all known holon identities.
-  rpc ListIdentities (ListIdentitiesRequest) returns (ListIdentitiesResponse);
+  rpc ListIdentities (sophia_who.v1.ListIdentitiesRequest) returns (sophia_who.v1.ListIdentitiesResponse);
 
   // ShowIdentity retrieves a holon's identity by UUID.
-  rpc ShowIdentity (ShowIdentityRequest) returns (ShowIdentityResponse);
+  rpc ShowIdentity (sophia_who.v1.ShowIdentityRequest) returns (sophia_who.v1.ShowIdentityResponse);
 
   // PinVersion pins version metadata to a holon.
-  rpc PinVersion (PinVersionRequest) returns (PinVersionResponse);
+  rpc PinVersion (sophia_who.v1.PinVersionRequest) returns (sophia_who.v1.PinVersionResponse);
 }
 
 // --- Discover ---
@@ -47,7 +49,7 @@ message DiscoverResponse {
 }
 
 message HolonEntry {
-  HolonIdentity identity = 1;
+  sophia_who.v1.HolonIdentity identity = 1;
   string origin = 2;  // "local" or "cached"
 }
 
@@ -65,80 +67,3 @@ message InvokeResponse {
 }
 
 // --- Identity (promoted from Sophia) ---
-
-message CreateIdentityRequest {
-  string given_name = 1;
-  string family_name = 2;
-  string motto = 3;
-  string composer = 4;
-  string clade = 5;
-  string lang = 6;
-  repeated string aliases = 7;
-  string wrapped_license = 8;
-  string reproduction = 9;
-  string output_dir = 10;
-}
-
-message CreateIdentityResponse {
-  HolonIdentity identity = 1;
-  string file_path = 2;
-}
-
-message ListIdentitiesRequest {
-  string root_dir = 1;
-}
-
-message ListIdentitiesResponse {
-  repeated HolonEntry entries = 1;
-}
-
-message ShowIdentityRequest {
-  string uuid = 1;
-}
-
-message ShowIdentityResponse {
-  HolonIdentity identity = 1;
-  string file_path = 2;
-  string raw_content = 3;
-}
-
-message PinVersionRequest {
-  string uuid = 1;
-  string binary_path = 2;
-  string binary_version = 3;
-  string git_tag = 4;
-  string git_commit = 5;
-  string os = 6;
-  string arch = 7;
-}
-
-message PinVersionResponse {
-  HolonIdentity identity = 1;
-}
-
-// --- Shared messages ---
-
-message HolonIdentity {
-  string uuid = 1;
-  string given_name = 2;
-  string family_name = 3;
-  string motto = 4;
-  string composer = 5;
-  string clade = 6;
-  string status = 7;
-  string born = 8;
-  repeated string parents = 9;
-  string reproduction = 10;
-  string binary_path = 11;
-  string binary_version = 12;
-  string git_tag = 13;
-  string git_commit = 14;
-  string os = 15;
-  string arch = 16;
-  repeated string dependencies = 17;
-  repeated string aliases = 18;
-  string wrapped_license = 19;
-  string generated_by = 20;
-  string lang = 21;
-  string proto_status = 22;
-}

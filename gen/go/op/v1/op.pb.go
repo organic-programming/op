@@ -8,7 +8,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.4
-// source: protos/op/v1/op.proto
+// source: op/v1/op.proto
 
 package opv1
 
@@ -36,7 +36,7 @@ type DiscoverRequest struct {
 
 func (x *DiscoverRequest) Reset() {
 	*x = DiscoverRequest{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[0]
+	mi := &file_op_v1_op_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +48,7 @@ func (x *DiscoverRequest) String() string {
 func (*DiscoverRequest) ProtoMessage() {}
 
 func (x *DiscoverRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[0]
+	mi := &file_op_v1_op_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +61,7 @@ func (x *DiscoverRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverRequest) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{0}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DiscoverRequest) GetRootDir() string {
@@ -81,7 +81,7 @@ type DiscoverResponse struct {
 
 func (x *DiscoverResponse) Reset() {
 	*x = DiscoverResponse{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[1]
+	mi := &file_op_v1_op_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -93,7 +93,7 @@ func (x *DiscoverResponse) String() string {
 func (*DiscoverResponse) ProtoMessage() {}
 
 func (x *DiscoverResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[1]
+	mi := &file_op_v1_op_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -106,7 +106,7 @@ func (x *DiscoverResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverResponse.ProtoReflect.Descriptor instead.
 func (*DiscoverResponse) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{1}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *DiscoverResponse) GetEntries() []*HolonEntry {
@@ -133,7 +133,7 @@ type HolonEntry struct {
 
 func (x *HolonEntry) Reset() {
 	*x = HolonEntry{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[2]
+	mi := &file_op_v1_op_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -145,7 +145,7 @@ func (x *HolonEntry) String() string {
 func (*HolonEntry) ProtoMessage() {}
 
 func (x *HolonEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[2]
+	mi := &file_op_v1_op_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -158,7 +158,7 @@ func (x *HolonEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HolonEntry.ProtoReflect.Descriptor instead.
 func (*HolonEntry) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{2}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *HolonEntry) GetIdentity() *HolonIdentity {
@@ -185,7 +185,7 @@ type InvokeRequest struct {
 
 func (x *InvokeRequest) Reset() {
 	*x = InvokeRequest{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[3]
+	mi := &file_op_v1_op_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -197,7 +197,7 @@ func (x *InvokeRequest) String() string {
 func (*InvokeRequest) ProtoMessage() {}
 
 func (x *InvokeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[3]
+	mi := &file_op_v1_op_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -210,7 +210,7 @@ func (x *InvokeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeRequest.ProtoReflect.Descriptor instead.
 func (*InvokeRequest) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{3}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *InvokeRequest) GetHolon() string {
@@ -238,7 +238,7 @@ type InvokeResponse struct {
 
 func (x *InvokeResponse) Reset() {
 	*x = InvokeResponse{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[4]
+	mi := &file_op_v1_op_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -250,7 +250,7 @@ func (x *InvokeResponse) String() string {
 func (*InvokeResponse) ProtoMessage() {}
 
 func (x *InvokeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[4]
+	mi := &file_op_v1_op_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -263,7 +263,7 @@ func (x *InvokeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeResponse.ProtoReflect.Descriptor instead.
 func (*InvokeResponse) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{4}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *InvokeResponse) GetExitCode() int32 {
@@ -305,7 +305,7 @@ type CreateIdentityRequest struct {
 
 func (x *CreateIdentityRequest) Reset() {
 	*x = CreateIdentityRequest{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[5]
+	mi := &file_op_v1_op_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -317,7 +317,7 @@ func (x *CreateIdentityRequest) String() string {
 func (*CreateIdentityRequest) ProtoMessage() {}
 
 func (x *CreateIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[5]
+	mi := &file_op_v1_op_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -330,7 +330,7 @@ func (x *CreateIdentityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateIdentityRequest.ProtoReflect.Descriptor instead.
 func (*CreateIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{5}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateIdentityRequest) GetGivenName() string {
@@ -413,7 +413,7 @@ type CreateIdentityResponse struct {
 
 func (x *CreateIdentityResponse) Reset() {
 	*x = CreateIdentityResponse{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[6]
+	mi := &file_op_v1_op_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -425,7 +425,7 @@ func (x *CreateIdentityResponse) String() string {
 func (*CreateIdentityResponse) ProtoMessage() {}
 
 func (x *CreateIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[6]
+	mi := &file_op_v1_op_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -438,7 +438,7 @@ func (x *CreateIdentityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateIdentityResponse.ProtoReflect.Descriptor instead.
 func (*CreateIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{6}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateIdentityResponse) GetIdentity() *HolonIdentity {
@@ -464,7 +464,7 @@ type ListIdentitiesRequest struct {
 
 func (x *ListIdentitiesRequest) Reset() {
 	*x = ListIdentitiesRequest{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[7]
+	mi := &file_op_v1_op_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +476,7 @@ func (x *ListIdentitiesRequest) String() string {
 func (*ListIdentitiesRequest) ProtoMessage() {}
 
 func (x *ListIdentitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[7]
+	mi := &file_op_v1_op_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +489,7 @@ func (x *ListIdentitiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListIdentitiesRequest.ProtoReflect.Descriptor instead.
 func (*ListIdentitiesRequest) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{7}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListIdentitiesRequest) GetRootDir() string {
@@ -508,7 +508,7 @@ type ListIdentitiesResponse struct {
 
 func (x *ListIdentitiesResponse) Reset() {
 	*x = ListIdentitiesResponse{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[8]
+	mi := &file_op_v1_op_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -520,7 +520,7 @@ func (x *ListIdentitiesResponse) String() string {
 func (*ListIdentitiesResponse) ProtoMessage() {}
 
 func (x *ListIdentitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[8]
+	mi := &file_op_v1_op_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -533,7 +533,7 @@ func (x *ListIdentitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListIdentitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListIdentitiesResponse) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{8}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListIdentitiesResponse) GetEntries() []*HolonEntry {
@@ -552,7 +552,7 @@ type ShowIdentityRequest struct {
 
 func (x *ShowIdentityRequest) Reset() {
 	*x = ShowIdentityRequest{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[9]
+	mi := &file_op_v1_op_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -564,7 +564,7 @@ func (x *ShowIdentityRequest) String() string {
 func (*ShowIdentityRequest) ProtoMessage() {}
 
 func (x *ShowIdentityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[9]
+	mi := &file_op_v1_op_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -577,7 +577,7 @@ func (x *ShowIdentityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowIdentityRequest.ProtoReflect.Descriptor instead.
 func (*ShowIdentityRequest) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{9}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ShowIdentityRequest) GetUuid() string {
@@ -598,7 +598,7 @@ type ShowIdentityResponse struct {
 
 func (x *ShowIdentityResponse) Reset() {
 	*x = ShowIdentityResponse{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[10]
+	mi := &file_op_v1_op_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -610,7 +610,7 @@ func (x *ShowIdentityResponse) String() string {
 func (*ShowIdentityResponse) ProtoMessage() {}
 
 func (x *ShowIdentityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[10]
+	mi := &file_op_v1_op_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -623,7 +623,7 @@ func (x *ShowIdentityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowIdentityResponse.ProtoReflect.Descriptor instead.
 func (*ShowIdentityResponse) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{10}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ShowIdentityResponse) GetIdentity() *HolonIdentity {
@@ -662,7 +662,7 @@ type PinVersionRequest struct {
 
 func (x *PinVersionRequest) Reset() {
 	*x = PinVersionRequest{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[11]
+	mi := &file_op_v1_op_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -674,7 +674,7 @@ func (x *PinVersionRequest) String() string {
 func (*PinVersionRequest) ProtoMessage() {}
 
 func (x *PinVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[11]
+	mi := &file_op_v1_op_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -687,7 +687,7 @@ func (x *PinVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PinVersionRequest.ProtoReflect.Descriptor instead.
 func (*PinVersionRequest) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{11}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PinVersionRequest) GetUuid() string {
@@ -748,7 +748,7 @@ type PinVersionResponse struct {
 
 func (x *PinVersionResponse) Reset() {
 	*x = PinVersionResponse{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[12]
+	mi := &file_op_v1_op_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -760,7 +760,7 @@ func (x *PinVersionResponse) String() string {
 func (*PinVersionResponse) ProtoMessage() {}
 
 func (x *PinVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[12]
+	mi := &file_op_v1_op_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -773,7 +773,7 @@ func (x *PinVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PinVersionResponse.ProtoReflect.Descriptor instead.
 func (*PinVersionResponse) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{12}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PinVersionResponse) GetIdentity() *HolonIdentity {
@@ -813,7 +813,7 @@ type HolonIdentity struct {
 
 func (x *HolonIdentity) Reset() {
 	*x = HolonIdentity{}
-	mi := &file_protos_op_v1_op_proto_msgTypes[13]
+	mi := &file_op_v1_op_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -825,7 +825,7 @@ func (x *HolonIdentity) String() string {
 func (*HolonIdentity) ProtoMessage() {}
 
 func (x *HolonIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_protos_op_v1_op_proto_msgTypes[13]
+	mi := &file_op_v1_op_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -838,7 +838,7 @@ func (x *HolonIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HolonIdentity.ProtoReflect.Descriptor instead.
 func (*HolonIdentity) Descriptor() ([]byte, []int) {
-	return file_protos_op_v1_op_proto_rawDescGZIP(), []int{13}
+	return file_op_v1_op_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *HolonIdentity) GetUuid() string {
@@ -995,11 +995,11 @@ func (x *HolonIdentity) GetProtoStatus() string {
 	return ""
 }
 
-var File_protos_op_v1_op_proto protoreflect.FileDescriptor
+var File_op_v1_op_proto protoreflect.FileDescriptor
 
-const file_protos_op_v1_op_proto_rawDesc = "" +
+const file_op_v1_op_proto_rawDesc = "" +
 	"\n" +
-	"\x15protos/op/v1/op.proto\x12\x05op.v1\",\n" +
+	"\x0eop/v1/op.proto\x12\x05op.v1\",\n" +
 	"\x0fDiscoverRequest\x12\x19\n" +
 	"\broot_dir\x18\x01 \x01(\tR\arootDir\"d\n" +
 	"\x10DiscoverResponse\x12+\n" +
@@ -1095,19 +1095,19 @@ const file_protos_op_v1_op_proto_rawDesc = "" +
 	"PinVersion\x12\x18.op.v1.PinVersionRequest\x1a\x19.op.v1.PinVersionResponseB;Z9github.com/organic-programming/grace-op/gen/go/op/v1;opv1b\x06proto3"
 
 var (
-	file_protos_op_v1_op_proto_rawDescOnce sync.Once
-	file_protos_op_v1_op_proto_rawDescData []byte
+	file_op_v1_op_proto_rawDescOnce sync.Once
+	file_op_v1_op_proto_rawDescData []byte
 )
 
-func file_protos_op_v1_op_proto_rawDescGZIP() []byte {
-	file_protos_op_v1_op_proto_rawDescOnce.Do(func() {
-		file_protos_op_v1_op_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_protos_op_v1_op_proto_rawDesc), len(file_protos_op_v1_op_proto_rawDesc)))
+func file_op_v1_op_proto_rawDescGZIP() []byte {
+	file_op_v1_op_proto_rawDescOnce.Do(func() {
+		file_op_v1_op_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_op_v1_op_proto_rawDesc), len(file_op_v1_op_proto_rawDesc)))
 	})
-	return file_protos_op_v1_op_proto_rawDescData
+	return file_op_v1_op_proto_rawDescData
 }
 
-var file_protos_op_v1_op_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
-var file_protos_op_v1_op_proto_goTypes = []any{
+var file_op_v1_op_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_op_v1_op_proto_goTypes = []any{
 	(*DiscoverRequest)(nil),        // 0: op.v1.DiscoverRequest
 	(*DiscoverResponse)(nil),       // 1: op.v1.DiscoverResponse
 	(*HolonEntry)(nil),             // 2: op.v1.HolonEntry
@@ -1123,7 +1123,7 @@ var file_protos_op_v1_op_proto_goTypes = []any{
 	(*PinVersionResponse)(nil),     // 12: op.v1.PinVersionResponse
 	(*HolonIdentity)(nil),          // 13: op.v1.HolonIdentity
 }
-var file_protos_op_v1_op_proto_depIdxs = []int32{
+var file_op_v1_op_proto_depIdxs = []int32{
 	2,  // 0: op.v1.DiscoverResponse.entries:type_name -> op.v1.HolonEntry
 	13, // 1: op.v1.HolonEntry.identity:type_name -> op.v1.HolonIdentity
 	13, // 2: op.v1.CreateIdentityResponse.identity:type_name -> op.v1.HolonIdentity
@@ -1149,26 +1149,26 @@ var file_protos_op_v1_op_proto_depIdxs = []int32{
 	0,  // [0:6] is the sub-list for field type_name
 }
 
-func init() { file_protos_op_v1_op_proto_init() }
-func file_protos_op_v1_op_proto_init() {
-	if File_protos_op_v1_op_proto != nil {
+func init() { file_op_v1_op_proto_init() }
+func file_op_v1_op_proto_init() {
+	if File_op_v1_op_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protos_op_v1_op_proto_rawDesc), len(file_protos_op_v1_op_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_op_v1_op_proto_rawDesc), len(file_op_v1_op_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_protos_op_v1_op_proto_goTypes,
-		DependencyIndexes: file_protos_op_v1_op_proto_depIdxs,
-		MessageInfos:      file_protos_op_v1_op_proto_msgTypes,
+		GoTypes:           file_op_v1_op_proto_goTypes,
+		DependencyIndexes: file_op_v1_op_proto_depIdxs,
+		MessageInfos:      file_op_v1_op_proto_msgTypes,
 	}.Build()
-	File_protos_op_v1_op_proto = out.File
-	file_protos_op_v1_op_proto_goTypes = nil
-	file_protos_op_v1_op_proto_depIdxs = nil
+	File_op_v1_op_proto = out.File
+	file_op_v1_op_proto_goTypes = nil
+	file_op_v1_op_proto_depIdxs = nil
 }
