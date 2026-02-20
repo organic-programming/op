@@ -14,6 +14,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/organic-programming/go-holons/pkg/transport"
 	"github.com/organic-programming/grace-op/internal/grpcclient"
 	"github.com/organic-programming/grace-op/internal/server"
 	"github.com/organic-programming/sophia-who/pkg/identity"
@@ -351,8 +352,8 @@ func cmdGRPCTCP(format Format, uri string, args []string) int {
 		return 1
 	}
 
-	// Pick an ephemeral port
-	lis, err := net.Listen("tcp", ":0")
+	// Pick an ephemeral port via SDK transport
+	lis, err := transport.Listen("tcp://:0")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: cannot allocate port: %v\n", err)
 		return 1
