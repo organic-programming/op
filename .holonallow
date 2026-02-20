@@ -1,0 +1,6 @@
+# Tools grace-op is authorized to invoke
+go
+git
+protoc
+who
+atlas
