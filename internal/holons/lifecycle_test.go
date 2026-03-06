@@ -158,6 +158,68 @@ func TestExecuteLifecycleBuildAndCleanGoModule(t *testing.T) {
 	}
 }
 
+func TestExecuteLifecycleBuildRejectsCrossTargetGoModule(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	dir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(dir, "cmd", "demo"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/demo\n\ngo 1.24.0\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "cmd", "demo", "main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/demo\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	otherTarget := "linux"
+	if canonicalRuntimeTarget() == "linux" {
+		otherTarget = "windows"
+	}
+
+	_, err := ExecuteLifecycle(OperationBuild, dir, BuildOptions{Target: otherTarget, DryRun: true})
+	if err == nil {
+		t.Fatal("expected cross-target error")
+	}
+	if !strings.Contains(err.Error(), "cross-target build not implemented") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCMakeRunnerDryRunUsesModeSpecificConfig(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "cmake-demo")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: cmake\nartifacts:\n  binary: .op/build/bin/demo\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	manifest, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+	var report Report
+	ctx := BuildContext{Target: canonicalRuntimeTarget(), Mode: buildModeProfile, DryRun: true}
+	if err := (cmakeRunner{}).build(manifest, ctx, &report); err != nil {
+		t.Fatalf("cmake dry-run build failed: %v", err)
+	}
+	if len(report.Commands) != 2 {
+		t.Fatalf("commands = %d, want 2", len(report.Commands))
+	}
+	if !strings.Contains(report.Commands[0], "CMAKE_BUILD_TYPE=RelWithDebInfo") {
+		t.Fatalf("configure command missing profile config: %q", report.Commands[0])
+	}
+	if !strings.Contains(report.Commands[1], "--config RelWithDebInfo") {
+		t.Fatalf("build command missing profile config: %q", report.Commands[1])
+	}
+}
+
 func chdirForHolonTest(t *testing.T, dir string) {
 	t.Helper()
 
