@@ -158,9 +158,9 @@ op show <uuid>                       → displays a holon's identity
 OP's discovery policy is:
 
 1. `holons/` directory (submodule siblings)
-2. `$OPBIN` (canonical install directory, default: `$OPPATH/bin`)
+2. `$OPBIN` (canonical install directory; see `CONVENTIONS.md` §2)
 3. `$PATH` (other installed holon binaries)
-4. `$OPPATH/cache/` (cached by Atlas; default: `~/.holon/cache/`)
+4. `$OPPATH/cache/` (cached by Atlas; see `CONVENTIONS.md` §2)
 
 By convention, users add `OPBIN` to `PATH`, but OP still treats the
 canonical install directory as a distinct discovery source so the
