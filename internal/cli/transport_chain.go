@@ -2,24 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/organic-programming/go-holons/pkg/transport"
 	"github.com/organic-programming/sophia-who/pkg/identity"
-
-	"gopkg.in/yaml.v3"
 )
-
-var supportedTransportSchemes = map[string]struct{}{
-	"mem":   {},
-	"stdio": {},
-	"tcp":   {},
-	"unix":  {},
-	"ws":    {},
-	"wss":   {},
-}
 
 // selectTransport determines the best transport for a target holon.
 // Priority:
@@ -28,12 +15,6 @@ var supportedTransportSchemes = map[string]struct{}{
 //  3. Binary available locally -> stdio:// (ephemeral)
 //  4. Network reachable -> tcp://
 func selectTransport(holonName string) (scheme string, err error) {
-	if override, found, err := lookupTransportOverride(holonName); err != nil {
-		return "", err
-	} else if found {
-		return override, nil
-	}
-
 	binaryPath, err := resolveHolon(holonName)
 	if err != nil {
 		return "", fmt.Errorf("holon not reachable")
@@ -49,93 +30,6 @@ func selectTransport(holonName string) (scheme string, err error) {
 	}
 
 	return "", fmt.Errorf("holon not reachable")
-}
-
-func lookupTransportOverride(holonName string) (scheme string, found bool, err error) {
-	configPath := ".holonconfig"
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", false, nil
-		}
-		return "", false, fmt.Errorf("read %s: %w", configPath, err)
-	}
-
-	var cfg map[string]any
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return "", false, fmt.Errorf("parse %s: %w", configPath, err)
-	}
-
-	if val, ok := lookupDotTransportKey(cfg, holonName); ok {
-		scheme, err := normalizeTransportScheme(val)
-		if err != nil {
-			return "", false, err
-		}
-		return scheme, true, nil
-	}
-
-	if val, ok := lookupNestedTransportKey(cfg, holonName); ok {
-		scheme, err := normalizeTransportScheme(val)
-		if err != nil {
-			return "", false, err
-		}
-		return scheme, true, nil
-	}
-
-	return "", false, nil
-}
-
-func lookupDotTransportKey(cfg map[string]any, holonName string) (string, bool) {
-	for k, v := range cfg {
-		if !strings.EqualFold(k, "transport."+holonName) {
-			continue
-		}
-		s, ok := v.(string)
-		return strings.TrimSpace(s), ok
-	}
-	return "", false
-}
-
-func lookupNestedTransportKey(cfg map[string]any, holonName string) (string, bool) {
-	var raw any
-	for k, v := range cfg {
-		if strings.EqualFold(k, "transport") {
-			raw = v
-			break
-		}
-	}
-	if raw == nil {
-		return "", false
-	}
-
-	entries, ok := raw.(map[string]any)
-	if !ok {
-		return "", false
-	}
-
-	for k, v := range entries {
-		if !strings.EqualFold(k, holonName) {
-			continue
-		}
-		s, ok := v.(string)
-		return strings.TrimSpace(s), ok
-	}
-
-	return "", false
-}
-
-func normalizeTransportScheme(value string) (string, error) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "", fmt.Errorf("invalid transport override %q", value)
-	}
-
-	scheme := strings.ToLower(strings.TrimSpace(transport.Scheme(trimmed)))
-	if _, ok := supportedTransportSchemes[scheme]; !ok {
-		return "", fmt.Errorf("invalid transport override %q", value)
-	}
-
-	return scheme, nil
 }
 
 func readHolonLang(holonName, binaryPath string) (string, error) {

@@ -8,42 +8,6 @@ import (
 	"github.com/organic-programming/sophia-who/pkg/identity"
 )
 
-func TestSelectTransport_OverrideNested(t *testing.T) {
-	root := t.TempDir()
-	chdirForTest(t, root)
-
-	config := "transport:\n  atlas: tcp://127.0.0.1:9090\n"
-	if err := os.WriteFile(".holonconfig", []byte(config), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	scheme, err := selectTransport("atlas")
-	if err != nil {
-		t.Fatalf("selectTransport returned error: %v", err)
-	}
-	if scheme != "tcp" {
-		t.Fatalf("scheme = %q, want %q", scheme, "tcp")
-	}
-}
-
-func TestSelectTransport_OverrideDotKey(t *testing.T) {
-	root := t.TempDir()
-	chdirForTest(t, root)
-
-	config := "transport.who: stdio://\n"
-	if err := os.WriteFile(".holonconfig", []byte(config), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	scheme, err := selectTransport("who")
-	if err != nil {
-		t.Fatalf("selectTransport returned error: %v", err)
-	}
-	if scheme != "stdio" {
-		t.Fatalf("scheme = %q, want %q", scheme, "stdio")
-	}
-}
-
 func TestSelectTransport_GoHolonUsesMem(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)

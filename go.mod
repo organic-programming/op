@@ -1,13 +1,12 @@
 module github.com/organic-programming/grace-op
 
-go 1.25.1
+go 1.25
 
 require (
 	github.com/organic-programming/go-holons v0.2.1-0.20260212114054-8fbeaa095fb9
 	github.com/organic-programming/sophia-who v0.1.0
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
-	gopkg.in/yaml.v3 v3.0.1
 	nhooyr.io/websocket v1.8.17
 )
 
