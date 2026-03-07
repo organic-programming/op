@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	opmod "github.com/organic-programming/grace-op/internal/mod"
 	"github.com/organic-programming/sophia-who/pkg/identity"
 )
 
@@ -30,7 +31,7 @@ func TestHelpCommand(t *testing.T) {
 	}
 }
 
-func TestRunWhoListThroughTransportChain(t *testing.T) {
+func TestRunWhoListThroughTransportChainWithoutBuiltInComposerFails(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
 
@@ -51,12 +52,12 @@ func TestRunWhoListThroughTransportChain(t *testing.T) {
 	})
 
 	code := Run([]string{"who", "list", "holons"}, "0.1.0-test")
-	if code != 0 {
-		t.Fatalf("who list returned %d, want 0", code)
+	if code != 1 {
+		t.Fatalf("who list returned %d, want 1", code)
 	}
 }
 
-func TestRunPromotedListThroughSophiaWho(t *testing.T) {
+func TestRunPromotedListNative(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
 
@@ -87,7 +88,7 @@ func TestRunNativeShowCommand(t *testing.T) {
 	})
 
 	output := captureStdout(t, func() {
-		code := Run([]string{"show", "transport-test-sophia-who"}, "0.1.0-test")
+		code := Run([]string{"show", "transport"}, "0.1.0-test")
 		if code != 0 {
 			t.Fatalf("show returned %d, want 0", code)
 		}
@@ -109,7 +110,7 @@ func TestRunNativeNewCommandJSON(t *testing.T) {
 		code := Run([]string{
 			"new",
 			"--json",
-			`{"given_name":"Alpha","family_name":"Builder","motto":"Builds holons.","composer":"test","lang":"go","aliases":["alpha"]}`,
+			`{"given_name":"Alpha","family_name":"Builder","motto":"Builds holons.","composer":"test","clade":"deterministic/io_bound","lang":"go"}`,
 		}, "0.1.0-test")
 		if code != 0 {
 			t.Fatalf("new returned %d, want 0", code)
@@ -119,6 +120,13 @@ func TestRunNativeNewCommandJSON(t *testing.T) {
 	createdPath := filepath.Join(root, "holons", "alpha-builder", identity.ManifestFileName)
 	if _, err := os.Stat(createdPath); err != nil {
 		t.Fatalf("created holon manifest missing: %v", err)
+	}
+	data, err := os.ReadFile(createdPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `generated_by: "op"`) {
+		t.Fatalf("created holon manifest missing generated_by op: %s", string(data))
 	}
 	if !strings.Contains(output, "Identity created") {
 		t.Fatalf("new output missing creation message: %q", output)
@@ -304,8 +312,8 @@ func TestDiscoverCommandJSONFormat(t *testing.T) {
 		if entry.Origin != "local" {
 			t.Fatalf("who origin = %q, want %q", entry.Origin, "local")
 		}
-		if entry.RelativePath != "who" {
-			t.Fatalf("who relative_path = %q, want %q", entry.RelativePath, "who")
+		if entry.RelativePath != "holons/who" {
+			t.Fatalf("who relative_path = %q, want %q", entry.RelativePath, "holons/who")
 		}
 	}
 	if !foundWho {
@@ -347,7 +355,7 @@ func TestDiscoverCommandIncludesCachedAndInstalledHolons(t *testing.T) {
 		GeneratedBy: "test",
 		Lang:        "go",
 	}
-	cachedManifest := fmt.Sprintf("%s\nkind: native\nbuild:\n  runner: go-module\nartifacts:\n  binary: .op/build/bin/cached-holon\n", manifestIdentityPrefix(cachedID))
+	cachedManifest := fmt.Sprintf("%s\nkind: native\nbuild:\n  runner: go-module\nartifacts:\n  binary: cached-holon\n", manifestIdentityPrefix(cachedID))
 	if err := os.WriteFile(filepath.Join(cacheDir, identity.ManifestFileName), []byte(cachedManifest), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -382,12 +390,6 @@ func TestEnvCommand(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
 
-	for _, dir := range []string{"holons", "examples", "recipes"} {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-
 	t.Setenv("OPPATH", filepath.Join(root, ".op-home"))
 	t.Setenv("OPBIN", filepath.Join(root, ".op-home", "bin"))
 
@@ -404,8 +406,12 @@ func TestEnvCommand(t *testing.T) {
 	if !strings.Contains(output, "OPBIN="+filepath.Join(root, ".op-home", "bin")) {
 		t.Fatalf("env output missing OPBIN: %q", output)
 	}
-	if !strings.Contains(output, "ROOTS=holons, examples, recipes") {
-		t.Fatalf("env output missing roots: %q", output)
+	wantRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		wantRoot = root
+	}
+	if !strings.Contains(output, "ROOT="+wantRoot) {
+		t.Fatalf("env output missing ROOT: %q", output)
 	}
 }
 
@@ -429,11 +435,50 @@ func TestEnvCommandInitAndShell(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".runtime", "bin")); err != nil {
 		t.Fatalf("opbin missing after init: %v", err)
 	}
+	if _, err := os.Stat(filepath.Join(root, ".runtime", "cache")); err != nil {
+		t.Fatalf("cache missing after init: %v", err)
+	}
 	if !strings.Contains(output, `export OPPATH="${OPPATH:-$HOME/.op}"`) {
 		t.Fatalf("env --shell output missing OPPATH export: %q", output)
 	}
 	if !strings.Contains(output, `export PATH="$OPBIN:$PATH"`) {
 		t.Fatalf("env --shell output missing PATH export: %q", output)
+	}
+}
+
+func TestEnvCommandJSONFormat(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".runtime"))
+	t.Setenv("OPBIN", filepath.Join(root, ".runtime", "bin"))
+
+	output := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "env"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("env --format json returned %d, want 0", code)
+		}
+	})
+
+	var payload struct {
+		OPPATH string `json:"oppath"`
+		OPBIN  string `json:"opbin"`
+		ROOT   string `json:"root"`
+	}
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("env json output is invalid: %v\noutput=%s", err, output)
+	}
+	if payload.OPPATH != filepath.Join(root, ".runtime") {
+		t.Fatalf("oppath = %q, want %q", payload.OPPATH, filepath.Join(root, ".runtime"))
+	}
+	if payload.OPBIN != filepath.Join(root, ".runtime", "bin") {
+		t.Fatalf("opbin = %q, want %q", payload.OPBIN, filepath.Join(root, ".runtime", "bin"))
+	}
+	wantRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		wantRoot = root
+	}
+	if payload.ROOT != wantRoot {
+		t.Fatalf("root = %q, want %q", payload.ROOT, wantRoot)
 	}
 }
 
@@ -457,7 +502,7 @@ func TestInstallCommand(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "cmd", "demo", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/demo\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: demo\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -477,6 +522,56 @@ func TestInstallCommand(t *testing.T) {
 	}
 }
 
+func TestInstallCommandJSONFormat(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go command not available")
+	}
+
+	root := t.TempDir()
+	chdirForTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".runtime"))
+	t.Setenv("OPBIN", filepath.Join(root, ".runtime", "bin"))
+
+	dir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(dir, "cmd", "demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/demo\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "cmd", "demo", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: demo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	output := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "install", dir}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("install --format json returned %d, want 0", code)
+		}
+	})
+
+	var payload struct {
+		Operation string `json:"operation"`
+		Binary    string `json:"binary"`
+		Installed string `json:"installed"`
+	}
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("install json output invalid: %v\noutput=%s", err, output)
+	}
+	if payload.Operation != "install" {
+		t.Fatalf("operation = %q, want install", payload.Operation)
+	}
+	if payload.Binary != "demo" {
+		t.Fatalf("binary = %q, want demo", payload.Binary)
+	}
+	if payload.Installed != filepath.Join(root, ".runtime", "bin", "demo") {
+		t.Fatalf("installed = %q, want %q", payload.Installed, filepath.Join(root, ".runtime", "bin", "demo"))
+	}
+}
+
 func TestInstallCommandNoBuildFailsWhenArtifactMissing(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
@@ -490,7 +585,7 @@ func TestInstallCommandNoBuildFailsWhenArtifactMissing(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/demo\n\ngo 1.24.0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/demo\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: demo\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -503,6 +598,32 @@ func TestInstallCommandNoBuildFailsWhenArtifactMissing(t *testing.T) {
 
 	if !strings.Contains(stderr, "artifact missing") {
 		t.Fatalf("stderr missing missing-artifact error: %q", stderr)
+	}
+}
+
+func TestInstallCommandRejectsCompositeWithoutBinary(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".runtime"))
+	t.Setenv("OPBIN", filepath.Join(root, ".runtime", "bin"))
+
+	dir := filepath.Join(root, "composite")
+	if err := os.MkdirAll(filepath.Join(dir, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte("schema: holon/v0\nkind: composite\nbuild:\n  runner: recipe\n  members:\n    - id: app\n      path: app\n      type: component\n  targets:\n    macos:\n      steps:\n        - exec:\n            cwd: app\n            argv: [\"echo\", \"hello\"]\nartifacts:\n  primary: app/MyApp.app\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stderr := captureStderr(t, func() {
+		code := Run([]string{"install", dir}, "0.1.0-test")
+		if code != 1 {
+			t.Fatalf("install composite returned %d, want 1", code)
+		}
+	})
+
+	if !strings.Contains(stderr, "has no installable binary") {
+		t.Fatalf("stderr missing installable-binary error: %q", stderr)
 	}
 }
 
@@ -526,6 +647,46 @@ func TestUninstallCommand(t *testing.T) {
 	}
 	if _, err := os.Stat(installed); !os.IsNotExist(err) {
 		t.Fatalf("installed binary still exists: %v", err)
+	}
+}
+
+func TestUninstallCommandJSONFormat(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".runtime"))
+	t.Setenv("OPBIN", filepath.Join(root, ".runtime", "bin"))
+
+	if err := os.MkdirAll(filepath.Join(root, ".runtime", "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	installed := filepath.Join(root, ".runtime", "bin", "demo")
+	if err := os.WriteFile(installed, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	output := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "uninstall", "demo"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("uninstall --format json returned %d, want 0", code)
+		}
+	})
+
+	var payload struct {
+		Operation string `json:"operation"`
+		Binary    string `json:"binary"`
+		Installed string `json:"installed"`
+	}
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("uninstall json output invalid: %v\noutput=%s", err, output)
+	}
+	if payload.Operation != "uninstall" {
+		t.Fatalf("operation = %q, want uninstall", payload.Operation)
+	}
+	if payload.Binary != "demo" {
+		t.Fatalf("binary = %q, want demo", payload.Binary)
+	}
+	if payload.Installed != installed {
+		t.Fatalf("installed = %q, want %q", payload.Installed, installed)
 	}
 }
 
@@ -661,10 +822,258 @@ func TestModCommandsUseOPPATHCache(t *testing.T) {
 	}
 }
 
+func TestModCommandsJSONFormat(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	runtimeHome := filepath.Join(root, ".runtime")
+	t.Setenv("OPPATH", runtimeHome)
+	t.Setenv("OPBIN", filepath.Join(runtimeHome, "bin"))
+
+	id := identity.New()
+	id.GeneratedBy = "op"
+	id.GivenName = "Alpha"
+	id.FamilyName = "Builder"
+	id.Motto = "Builds holons."
+	id.Composer = "test"
+	id.Clade = "deterministic/pure"
+	id.Reproduction = "manual"
+	id.Lang = "go"
+	if err := identity.WriteHolonYAML(id, filepath.Join(root, identity.ManifestFileName)); err != nil {
+		t.Fatal(err)
+	}
+
+	remoteCalls := 0
+	restore := opmod.SetRemoteTagsForTesting(func(depPath string) ([]string, error) {
+		switch depPath {
+		case "github.com/example/dep":
+			remoteCalls++
+			if remoteCalls == 1 {
+				return []string{"v1.0.0", "v1.4.0"}, nil
+			}
+			return []string{"v1.0.0", "v1.4.0", "v1.5.0"}, nil
+		default:
+			return nil, fmt.Errorf("unexpected dep %s", depPath)
+		}
+	})
+	t.Cleanup(restore)
+
+	cacheV14 := filepath.Join(runtimeHome, "cache", "github.com/example/dep@v1.4.0")
+	if err := os.MkdirAll(cacheV14, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := identity.WriteHolonYAML(id, filepath.Join(cacheV14, identity.ManifestFileName)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cacheV14, "holon.mod"), []byte("holon github.com/example/dep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cacheV15 := filepath.Join(runtimeHome, "cache", "github.com/example/dep@v1.5.0")
+	if err := os.MkdirAll(cacheV15, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := identity.WriteHolonYAML(id, filepath.Join(cacheV15, identity.ManifestFileName)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cacheV15, "holon.mod"), []byte("holon github.com/example/dep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	initOutput := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "mod", "init"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("mod init --format json returned %d, want 0", code)
+		}
+	})
+	var initPayload struct {
+		HolonPath string `json:"holon_path"`
+	}
+	if err := json.Unmarshal([]byte(initOutput), &initPayload); err != nil {
+		t.Fatalf("mod init json invalid: %v\noutput=%s", err, initOutput)
+	}
+	if initPayload.HolonPath != "alpha-builder" {
+		t.Fatalf("holon_path = %q, want alpha-builder", initPayload.HolonPath)
+	}
+
+	addOutput := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "mod", "add", "github.com/example/dep"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("mod add --format json returned %d, want 0", code)
+		}
+	})
+	var addPayload struct {
+		Dependency struct {
+			Path      string `json:"path"`
+			Version   string `json:"version"`
+			CachePath string `json:"cache_path"`
+		} `json:"dependency"`
+	}
+	if err := json.Unmarshal([]byte(addOutput), &addPayload); err != nil {
+		t.Fatalf("mod add json invalid: %v\noutput=%s", err, addOutput)
+	}
+	if addPayload.Dependency.Version != "v1.4.0" {
+		t.Fatalf("version = %q, want v1.4.0", addPayload.Dependency.Version)
+	}
+
+	listOutput := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "mod", "list"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("mod list --format json returned %d, want 0", code)
+		}
+	})
+	var listPayload struct {
+		Dependencies []struct {
+			Path    string `json:"path"`
+			Version string `json:"version"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal([]byte(listOutput), &listPayload); err != nil {
+		t.Fatalf("mod list json invalid: %v\noutput=%s", err, listOutput)
+	}
+	if len(listPayload.Dependencies) != 1 || listPayload.Dependencies[0].Version != "v1.4.0" {
+		t.Fatalf("unexpected list payload: %+v", listPayload.Dependencies)
+	}
+
+	graphOutput := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "mod", "graph"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("mod graph --format json returned %d, want 0", code)
+		}
+	})
+	var graphPayload struct {
+		Root string `json:"root"`
+	}
+	if err := json.Unmarshal([]byte(graphOutput), &graphPayload); err != nil {
+		t.Fatalf("mod graph json invalid: %v\noutput=%s", err, graphOutput)
+	}
+	if graphPayload.Root != "alpha-builder" {
+		t.Fatalf("graph root = %q, want alpha-builder", graphPayload.Root)
+	}
+
+	pullOutput := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "mod", "pull"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("mod pull --format json returned %d, want 0", code)
+		}
+	})
+	var pullPayload struct {
+		Fetched []struct {
+			Path    string `json:"path"`
+			Version string `json:"version"`
+		} `json:"fetched"`
+	}
+	if err := json.Unmarshal([]byte(pullOutput), &pullPayload); err != nil {
+		t.Fatalf("mod pull json invalid: %v\noutput=%s", err, pullOutput)
+	}
+	if len(pullPayload.Fetched) != 1 || pullPayload.Fetched[0].Version != "v1.4.0" {
+		t.Fatalf("unexpected pull payload: %+v", pullPayload.Fetched)
+	}
+
+	if err := os.WriteFile(filepath.Join(root, "holon.sum"), []byte("github.com/example/dep v1.4.0 h1:keep\ngithub.com/example/stale v9.9.9 h1:drop\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tidyOutput := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "mod", "tidy"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("mod tidy --format json returned %d, want 0", code)
+		}
+	})
+	var tidyPayload struct {
+		Pruned []string `json:"pruned"`
+	}
+	if err := json.Unmarshal([]byte(tidyOutput), &tidyPayload); err != nil {
+		t.Fatalf("mod tidy json invalid: %v\noutput=%s", err, tidyOutput)
+	}
+	if len(tidyPayload.Pruned) != 1 {
+		t.Fatalf("unexpected tidy pruned entries: %+v", tidyPayload.Pruned)
+	}
+
+	updateOutput := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "mod", "update", "github.com/example/dep"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("mod update --format json returned %d, want 0", code)
+		}
+	})
+	var updatePayload struct {
+		Updated []struct {
+			NewVersion string `json:"new_version"`
+		} `json:"updated"`
+	}
+	if err := json.Unmarshal([]byte(updateOutput), &updatePayload); err != nil {
+		t.Fatalf("mod update json invalid: %v\noutput=%s", err, updateOutput)
+	}
+	if len(updatePayload.Updated) != 1 || updatePayload.Updated[0].NewVersion != "v1.5.0" {
+		t.Fatalf("unexpected update payload: %+v", updatePayload.Updated)
+	}
+
+	removeOutput := captureStdout(t, func() {
+		code := Run([]string{"--format", "json", "mod", "remove", "github.com/example/dep"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("mod remove --format json returned %d, want 0", code)
+		}
+	})
+	var removePayload struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal([]byte(removeOutput), &removePayload); err != nil {
+		t.Fatalf("mod remove json invalid: %v\noutput=%s", err, removeOutput)
+	}
+	if removePayload.Path != "github.com/example/dep" {
+		t.Fatalf("remove path = %q, want github.com/example/dep", removePayload.Path)
+	}
+}
+
 func TestDispatchUnknownHolon(t *testing.T) {
 	code := Run([]string{"nonexistent-holon", "some-command"}, "0.1.0-test")
 	if code != 1 {
 		t.Errorf("dispatch (unknown) returned %d, want 1", code)
+	}
+}
+
+func TestRunCommandUsesPlatformNeutralStopMessage(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+
+	dir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(dir, ".op", "build", "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nartifacts:\n  binary: demo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	binaryPath := filepath.Join(dir, ".op", "build", "bin", "demo")
+	if err := os.WriteFile(binaryPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	output := captureStdout(t, func() {
+		code := Run([]string{"run", "demo:9099"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("run returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(output, "op run: started demo") {
+		t.Fatalf("run output missing start line: %q", output)
+	}
+	if !strings.Contains(output, "stop the process by PID") {
+		t.Fatalf("run output missing neutral stop guidance: %q", output)
+	}
+	if strings.Contains(output, "kill ") {
+		t.Fatalf("run output still contains platform-specific kill guidance: %q", output)
+	}
+}
+
+func TestGRPCURIWithoutPortRequiresMethodForEphemeralHolon(t *testing.T) {
+	stderr := captureStderr(t, func() {
+		code := Run([]string{"grpc://rob-go"}, "0.1.0-test")
+		if code != 1 {
+			t.Fatalf("grpc://rob-go returned %d, want 1", code)
+		}
+	})
+
+	if !strings.Contains(stderr, "method required for ephemeral mode") {
+		t.Fatalf("stderr missing ephemeral-mode method error: %q", stderr)
 	}
 }
 

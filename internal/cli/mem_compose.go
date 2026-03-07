@@ -33,12 +33,8 @@ var sophiaMemComposer = &memHolonComposer{
 	callRPC:  callSophiaWhoRPC,
 }
 
-// memComposeRegistry maps supported holon names to their in-process composer.
-var memComposeRegistry = map[string]*memHolonComposer{
-	"who":        sophiaMemComposer,
-	"sophia":     sophiaMemComposer,
-	"sophia-who": sophiaMemComposer,
-}
+// memComposeRegistry maps supported third-party holon names to their in-process composer.
+var memComposeRegistry = map[string]*memHolonComposer{}
 
 func registerSophiaWhoService(s *grpc.Server) {
 	sophiaservice.RegisterGRPC(s)

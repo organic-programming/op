@@ -29,7 +29,7 @@ requires:
   commands: [go]
   files: [go.mod]
 artifacts:
-  binary: .op/build/bin/child-a
+  binary: child-a
 `), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ build:
             cwd: child-b
             argv: ["echo", "hello"]
 artifacts:
-  binary: my-app
+  primary: child-b/my-app
 `)
 
 	loaded, err := LoadManifest(root)
@@ -150,7 +150,7 @@ build:
             cwd: work
             argv: ["echo", "darwin"]
 artifacts:
-  binary: my-app
+  primary: work/my-app
 `)
 
 	_, err := LoadManifest(root)
@@ -181,7 +181,7 @@ build:
       steps:
         - build_member: nonexistent
 artifacts:
-  binary: my-app
+  primary: child/my-app
 `)
 
 	_, err := LoadManifest(root)
@@ -206,7 +206,7 @@ requires:
   commands: [go]
   files: [go.mod]
 artifacts:
-  binary: .op/build/bin/child
+  binary: child
 `), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ build:
             cwd: child
             argv: ["echo", "oops"]
 artifacts:
-  binary: my-app
+  primary: child/my-app
 `)
 
 	_, err := LoadManifest(root)
@@ -319,7 +319,7 @@ build:
       steps:
         - build_member: component
 artifacts:
-  binary: my-app
+  primary: component/my-app
 `)
 
 	_, err := LoadManifest(root)
@@ -352,7 +352,7 @@ build:
             cwd: work
             argv: []
 artifacts:
-  binary: my-app
+  primary: work/my-app
 `)
 
 	_, err := LoadManifest(root)
@@ -385,7 +385,7 @@ build:
             cwd: work
             argv: ["echo", "hello"]
 artifacts:
-  binary: my-app
+  primary: work/my-app
 `)
 
 	_, err := LoadManifest(root)
@@ -647,7 +647,7 @@ build:
             cwd: child
             argv: ["echo", "hello"]
 artifacts:
-  binary: my-app
+  primary: child/my-app
 `)
 
 	_, err := ExecuteLifecycle(OperationBuild, root)

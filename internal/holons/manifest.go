@@ -193,10 +193,21 @@ func (m *LoadedManifest) mustResolveManifestPath(rel string) string {
 }
 
 func (m *LoadedManifest) BinaryPath() string {
-	if strings.TrimSpace(m.Manifest.Artifacts.Binary) == "" {
+	if binary := m.BinaryName(); binary != "" {
+		return filepath.Join(m.Dir, ".op", "build", "bin", binary)
+	}
+	return ""
+}
+
+func (m *LoadedManifest) BinaryName() string {
+	if m == nil {
 		return ""
 	}
-	return m.mustResolveManifestPath(m.Manifest.Artifacts.Binary)
+	trimmed := strings.TrimSpace(m.Manifest.Artifacts.Binary)
+	if trimmed == "" {
+		return ""
+	}
+	return strings.TrimSpace(filepath.Base(trimmed))
 }
 
 // PrimaryArtifactPath returns the primary artifact path (success contract).
@@ -248,15 +259,23 @@ func validateManifest(m *LoadedManifest) error {
 		return fmt.Errorf("%s: build.runner must be %q, %q, or %q", m.Path, RunnerGoModule, RunnerCMake, RunnerRecipe)
 	}
 
-	// Artifact validation: binary required for leaf runners, primary/primary_by_target/binary for recipe.
+	// Artifact validation: binary required for native/wrapper, primary or target-aware primary required for composite.
 	hasBinary := strings.TrimSpace(m.Manifest.Artifacts.Binary) != ""
 	hasPrimary := strings.TrimSpace(m.Manifest.Artifacts.Primary) != ""
 	hasPrimaryByTarget := len(m.Manifest.Artifacts.PrimaryByTarget) > 0
-	if !hasBinary && !hasPrimary && !hasPrimaryByTarget {
-		return fmt.Errorf("%s: artifacts.binary, artifacts.primary, or artifacts.primary_by_target is required", m.Path)
+
+	switch m.Manifest.Kind {
+	case KindNative, KindWrapper:
+		if !hasBinary {
+			return fmt.Errorf("%s: artifacts.binary is required for %s holons", m.Path, m.Manifest.Kind)
+		}
+	case KindComposite:
+		if !hasPrimary && !hasPrimaryByTarget {
+			return fmt.Errorf("%s: artifacts.primary or artifacts.primary_by_target is required for composite holons", m.Path)
+		}
 	}
 	if hasBinary {
-		if err := validateManifestRelativeField(m, "artifacts.binary", m.Manifest.Artifacts.Binary); err != nil {
+		if err := validateBinaryName(m, m.Manifest.Artifacts.Binary); err != nil {
 			return err
 		}
 	}
@@ -484,6 +503,20 @@ func normalizeManifest(m *LoadedManifest) error {
 func validateManifestRelativeField(m *LoadedManifest, field, relPath string) error {
 	if _, err := m.ResolveManifestPath(relPath); err != nil {
 		return fmt.Errorf("%s: %s: %w", m.Path, field, err)
+	}
+	return nil
+}
+
+func validateBinaryName(m *LoadedManifest, name string) error {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return fmt.Errorf("%s: artifacts.binary must not be empty", m.Path)
+	}
+	if filepath.Base(trimmed) != trimmed || strings.Contains(trimmed, "/") || strings.Contains(trimmed, `\`) {
+		return fmt.Errorf("%s: artifacts.binary must be a binary name, not a path", m.Path)
+	}
+	if trimmed == "." || trimmed == ".." {
+		return fmt.Errorf("%s: artifacts.binary must be a binary name, not %q", m.Path, trimmed)
 	}
 	return nil
 }

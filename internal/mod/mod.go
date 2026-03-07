@@ -74,6 +74,18 @@ type TidyResult struct {
 
 var listRemoteTags = realListRemoteTags
 
+func SetRemoteTagsForTesting(fn func(string) ([]string, error)) func() {
+	previous := listRemoteTags
+	if fn == nil {
+		listRemoteTags = realListRemoteTags
+	} else {
+		listRemoteTags = fn
+	}
+	return func() {
+		listRemoteTags = previous
+	}
+}
+
 func Init(dir, holonPath string) (*InitResult, error) {
 	if strings.TrimSpace(dir) == "" {
 		dir = "."
@@ -325,9 +337,14 @@ func Tidy(dir string) (*TidyResult, error) {
 		dir = "."
 	}
 
-	mod, _, err := loadMod(dir)
+	mod, modPath, err := loadMod(dir)
 	if err != nil {
 		return nil, err
+	}
+	mod.Require = canonicalRequires(mod.Require)
+	mod.Replace = canonicalReplaces(mod.Replace)
+	if err := mod.Write(modPath); err != nil {
+		return nil, fmt.Errorf("write holon.mod: %w", err)
 	}
 
 	sumPath := filepath.Join(dir, "holon.sum")
@@ -377,6 +394,68 @@ func Tidy(dir string) (*TidyResult, error) {
 		Pruned:  pruned,
 		Current: current,
 	}, nil
+}
+
+func canonicalRequires(reqs []modfile.Require) []modfile.Require {
+	if len(reqs) == 0 {
+		return nil
+	}
+
+	best := make(map[string]string, len(reqs))
+	for _, req := range reqs {
+		path := strings.TrimSpace(req.Path)
+		version := strings.TrimSpace(req.Version)
+		if path == "" || version == "" {
+			continue
+		}
+		existing, ok := best[path]
+		if !ok || compareVersions(version, existing) > 0 {
+			best[path] = version
+		}
+	}
+
+	out := make([]modfile.Require, 0, len(best))
+	for path, version := range best {
+		out = append(out, modfile.Require{Path: path, Version: version})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out
+}
+
+func canonicalReplaces(repls []modfile.Replace) []modfile.Replace {
+	if len(repls) == 0 {
+		return nil
+	}
+
+	latest := make(map[string]string, len(repls))
+	for _, repl := range repls {
+		old := strings.TrimSpace(repl.Old)
+		localPath := strings.TrimSpace(repl.LocalPath)
+		if old == "" || localPath == "" {
+			continue
+		}
+		latest[old] = localPath
+	}
+
+	out := make([]modfile.Replace, 0, len(latest))
+	for old, localPath := range latest {
+		out = append(out, modfile.Replace{Old: old, LocalPath: localPath})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Old < out[j].Old })
+	return out
+}
+
+func compareVersions(a, b string) int {
+	if _, _, _, ok := parseSemver(a); ok {
+		if _, _, _, ok := parseSemver(b); ok {
+			return compareSemver(a, b)
+		}
+		return 1
+	}
+	if _, _, _, ok := parseSemver(b); ok {
+		return -1
+	}
+	return strings.Compare(a, b)
 }
 
 func loadMod(dir string) (*modfile.ModFile, string, error) {

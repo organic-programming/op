@@ -11,9 +11,9 @@ import (
 
 	"github.com/organic-programming/go-holons/pkg/transport"
 	"github.com/organic-programming/grace-op/internal/holons"
+	"github.com/organic-programming/grace-op/internal/who"
 	sophiapb "github.com/organic-programming/sophia-who/gen/go/sophia_who/v1"
 	"github.com/organic-programming/sophia-who/pkg/identity"
-	sophiaservice "github.com/organic-programming/sophia-who/pkg/service"
 
 	pb "github.com/organic-programming/grace-op/gen/go/op/v1"
 
@@ -24,8 +24,6 @@ import (
 // Server implements the OPService gRPC interface.
 type Server struct {
 	pb.UnimplementedOPServiceServer
-
-	sophia sophiaservice.Server
 }
 
 // --- OP-native RPCs ---
@@ -93,17 +91,24 @@ func (s *Server) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb.InvokeR
 
 // CreateIdentity creates a new holon identity.
 func (s *Server) CreateIdentity(ctx context.Context, req *sophiapb.CreateIdentityRequest) (*sophiapb.CreateIdentityResponse, error) {
-	return s.sophia.CreateIdentity(ctx, req)
+	return who.Create(req)
 }
 
 // ListIdentities lists all known holon identities.
 func (s *Server) ListIdentities(ctx context.Context, req *sophiapb.ListIdentitiesRequest) (*sophiapb.ListIdentitiesResponse, error) {
-	return s.sophia.ListIdentities(ctx, req)
+	root := "."
+	if req != nil && req.GetRootDir() != "" {
+		root = req.GetRootDir()
+	}
+	return who.List(root)
 }
 
 // ShowIdentity retrieves a holon's identity by UUID.
 func (s *Server) ShowIdentity(ctx context.Context, req *sophiapb.ShowIdentityRequest) (*sophiapb.ShowIdentityResponse, error) {
-	return s.sophia.ShowIdentity(ctx, req)
+	if req == nil {
+		return nil, fmt.Errorf("uuid is required")
+	}
+	return who.Show(req.GetUuid())
 }
 
 // ListenAndServe starts the gRPC server on the given transport URI.
@@ -150,7 +155,7 @@ func toProto(id identity.Identity) *sophiapb.HolonIdentity {
 }
 
 func cladeToProto(value string) sophiapb.Clade {
-	switch strings.ToLower(value) {
+	switch lowerTrim(value) {
 	case "deterministic/pure":
 		return sophiapb.Clade_DETERMINISTIC_PURE
 	case "deterministic/stateful":
@@ -169,7 +174,7 @@ func cladeToProto(value string) sophiapb.Clade {
 }
 
 func statusToProto(value string) sophiapb.Status {
-	switch strings.ToLower(value) {
+	switch lowerTrim(value) {
 	case "draft":
 		return sophiapb.Status_DRAFT
 	case "stable":
@@ -184,7 +189,7 @@ func statusToProto(value string) sophiapb.Status {
 }
 
 func reproductionToProto(value string) sophiapb.ReproductionMode {
-	switch strings.ToLower(value) {
+	switch lowerTrim(value) {
 	case "manual":
 		return sophiapb.ReproductionMode_MANUAL
 	case "assisted":
@@ -198,4 +203,8 @@ func reproductionToProto(value string) sophiapb.ReproductionMode {
 	default:
 		return sophiapb.ReproductionMode_REPRODUCTION_UNSPECIFIED
 	}
+}
+
+func lowerTrim(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }

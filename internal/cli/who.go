@@ -47,7 +47,7 @@ func cmdWhoList(format Format, args []string) int {
 
 func cmdWhoShow(format Format, args []string) int {
 	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: op show <uuid>")
+		fmt.Fprintln(os.Stderr, "usage: op show <uuid-or-prefix>")
 		return 1
 	}
 

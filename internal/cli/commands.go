@@ -88,20 +88,19 @@ Global flags (must come before <holon> or URI):
 
 Holon dispatch (transport chain):
   op <holon> <command> [args]            dispatch via mem://, stdio://, or tcp://
-  op sophia-who list [root]              mapped RPC: ListIdentities
-  op who list [root]                     alias of sophia-who over mem://
 
 Direct gRPC URI dispatch:
   op grpc://<host:port> <method>         gRPC over TCP (existing server)
   op grpc+stdio://<holon> <method>       gRPC over stdio pipe (ephemeral)
   op grpc+unix://<path> <method>         gRPC over Unix socket
   op grpc+ws://<host:port> <method>      gRPC over WebSocket
+  op grpc+wss://<host:port> <method>     gRPC over secure WebSocket
   op run <holon>:<port>                  start a holon's gRPC server (TCP)
   op run <holon> --listen <URI>          start with any transport
 
 OP commands:
   op list [root]                         list local + cached holons natively
-  op show <uuid>                         display a holon identity natively
+  op show <uuid-or-prefix>               display a holon identity natively
   op new [--json <payload>]              create a holon identity natively
   op check [<holon-or-path>]             validate holon.yaml and prerequisites
   op build [<holon-or-path>] [flags]     build a holon artifact via its runner
@@ -110,7 +109,7 @@ OP commands:
   op install [<holon-or-path>]           install a built artifact into $OPBIN
   op uninstall <holon>                   remove an installed artifact from $OPBIN
   op mod <command>                       manage holon.mod and holon.sum
-  op env [--init] [--shell]              print resolved OPPATH / OPBIN / roots
+  op env [--init] [--shell]              print resolved OPPATH / OPBIN / ROOT
 
 Build flags:
   --target <macos|linux|windows|ios|ios-simulator|tvos|tvos-simulator|watchos|watchos-simulator|visionos|visionos-simulator|android|all>   platform target (default: current OS)
@@ -302,7 +301,7 @@ func cmdRun(args []string) int {
 	}
 
 	fmt.Printf("op run: started %s (pid %d) on %s\n", holonName, cmd.Process.Pid, listenURI)
-	fmt.Printf("op run: stop with: kill %d\n", cmd.Process.Pid)
+	fmt.Printf("op run: stop the process by PID %d using your platform's process tool\n", cmd.Process.Pid)
 
 	// Detach — the process runs in the background
 	if err := cmd.Process.Release(); err != nil {
@@ -610,7 +609,7 @@ func looksLikeJSON(value string) bool {
 // cmdDispatch runs `op <holon> <command> [args...]` by finding the
 // holon binary and executing it as a subprocess.
 func cmdDispatch(holon string, args []string) int {
-	// Try to find the holon binary by alias
+	// Try to find the holon binary by selector.
 	binary, err := resolveHolon(holon)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op: unknown holon %q\n", holon)
@@ -633,9 +632,7 @@ func cmdDispatch(holon string, args []string) int {
 	return 0
 }
 
-// resolveHolon finds a holon binary by alias name. Search order:
-// 1. holons/<name>/<name> (sibling submodule binary)
-// 2. $PATH
+// resolveHolon finds a holon binary by selector.
 func resolveHolon(name string) (string, error) {
 	return holons.ResolveBinary(name)
 }

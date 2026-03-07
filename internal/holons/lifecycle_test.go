@@ -37,7 +37,7 @@ func writeManifestWithIdentity(t *testing.T, dir string, id identity.Identity, s
 
 func TestLoadManifestRejectsUnknownField(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ManifestFileName), []byte("schema: holon/v0\nkind: native\nunknown: true\nbuild:\n  runner: go-module\nartifacts:\n  binary: .op/build/bin/demo\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ManifestFileName), []byte("schema: holon/v0\nkind: native\nunknown: true\nbuild:\n  runner: go-module\nartifacts:\n  binary: demo\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -50,7 +50,7 @@ func TestLoadManifestRejectsUnknownField(t *testing.T) {
 	}
 }
 
-func TestResolveTargetByAliasAcrossRoots(t *testing.T) {
+func TestResolveTargetBySlugAcrossRoots(t *testing.T) {
 	root := t.TempDir()
 	chdirForHolonTest(t, root)
 
@@ -71,9 +71,9 @@ func TestResolveTargetByAliasAcrossRoots(t *testing.T) {
 		GeneratedBy: "test",
 		Lang:        "go",
 	}
-	writeManifestWithIdentity(t, dir, id, "kind: native\nbuild:\n  runner: go-module\n  main: ./cmd/who\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/sophia-who\n")
+	writeManifestWithIdentity(t, dir, id, "kind: native\nbuild:\n  runner: go-module\n  main: ./cmd/who\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: sophia-who\n")
 
-	target, err := ResolveTarget("who")
+	target, err := ResolveTarget("sophia-who")
 	if err != nil {
 		t.Fatalf("ResolveTarget returned error: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestResolveTargetByAliasAcrossRoots(t *testing.T) {
 	}
 }
 
-func TestResolveBinaryUsesCanonicalArtifactNameForAlias(t *testing.T) {
+func TestResolveBinaryUsesCanonicalArtifactNameForSlug(t *testing.T) {
 	root := t.TempDir()
 	chdirForHolonTest(t, root)
 
@@ -103,13 +103,13 @@ func TestResolveBinaryUsesCanonicalArtifactNameForAlias(t *testing.T) {
 		GeneratedBy: "test",
 		Lang:        "go",
 	}
-	writeManifestWithIdentity(t, dir, id, "kind: native\nbuild:\n  runner: go-module\n  main: ./cmd/who\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/sophia-who\n")
+	writeManifestWithIdentity(t, dir, id, "kind: native\nbuild:\n  runner: go-module\n  main: ./cmd/who\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: sophia-who\n")
 	binaryPath := filepath.Join(dir, ".op", "build", "bin", "sophia-who")
 	if err := os.WriteFile(binaryPath, []byte("#!/bin/sh\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	resolved, err := ResolveBinary("who")
+	resolved, err := ResolveBinary("sophia-who")
 	if err != nil {
 		t.Fatalf("ResolveBinary returned error: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestExecuteLifecycleBuildAndCleanGoModule(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "cmd", "demo", "main.go"), []byte(mainSrc), 0644); err != nil {
 		t.Fatal(err)
 	}
-	manifest := "schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/demo\n"
+	manifest := "schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: demo\n"
 	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte(manifest), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestExecuteLifecycleBuildRejectsCrossTargetGoModule(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "cmd", "demo", "main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/demo\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: demo\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -211,7 +211,7 @@ func TestCMakeRunnerDryRunUsesModeSpecificConfig(t *testing.T) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: cmake\nartifacts:\n  binary: .op/build/bin/demo\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: cmake\nartifacts:\n  binary: demo\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 

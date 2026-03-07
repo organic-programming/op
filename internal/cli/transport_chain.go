@@ -60,12 +60,5 @@ func memCandidateNames(requested string, target *holons.Target) []string {
 		return names
 	}
 	names = append(names, filepath.Base(target.Dir))
-	if target.Identity != nil {
-		names = append(names, target.Identity.Aliases...)
-		names = append(names, strings.ToLower(strings.TrimSpace(target.Identity.GivenName)))
-		slug := strings.ToLower(strings.TrimSpace(target.Identity.GivenName + "-" + strings.TrimSuffix(target.Identity.FamilyName, "?")))
-		slug = strings.ReplaceAll(slug, " ", "-")
-		names = append(names, strings.Trim(slug, "-"))
-	}
 	return names
 }

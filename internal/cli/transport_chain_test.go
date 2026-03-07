@@ -10,7 +10,7 @@ import (
 	"github.com/organic-programming/sophia-who/pkg/identity"
 )
 
-func TestSelectTransport_SophiaWhoAliasUsesMemWithoutBinary(t *testing.T) {
+func TestSelectTransport_UnregisteredGoHolonWithoutBinaryIsNotReachable(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
 
@@ -23,12 +23,12 @@ func TestSelectTransport_SophiaWhoAliasUsesMemWithoutBinary(t *testing.T) {
 		lang:       "go",
 	})
 
-	scheme, err := selectTransport("who")
-	if err != nil {
-		t.Fatalf("selectTransport returned error: %v", err)
+	_, err := selectTransport("sophia")
+	if err == nil {
+		t.Fatal("expected selectTransport to fail")
 	}
-	if scheme != "mem" {
-		t.Fatalf("scheme = %q, want %q", scheme, "mem")
+	if err.Error() != "holon not reachable" {
+		t.Fatalf("error = %q, want %q", err.Error(), "holon not reachable")
 	}
 }
 
@@ -85,7 +85,10 @@ func seedTransportHolon(t *testing.T, root string, seed transportHolonSeed) {
 	}
 
 	if seed.binaryName != "" {
-		binaryPath := filepath.Join(dir, seed.binaryName)
+		binaryPath := filepath.Join(dir, ".op", "build", "bin", seed.binaryName)
+		if err := os.MkdirAll(filepath.Dir(binaryPath), 0755); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(binaryPath, []byte("#!/bin/sh\n"), 0755); err != nil {
 			t.Fatal(err)
 		}

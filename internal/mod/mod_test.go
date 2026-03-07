@@ -34,6 +34,41 @@ func TestInitInfersHolonPathFromIdentity(t *testing.T) {
 	}
 }
 
+func TestInitUsesExplicitHolonPath(t *testing.T) {
+	dir := t.TempDir()
+
+	result, err := Init(dir, "github.com/example/custom")
+	if err != nil {
+		t.Fatalf("Init returned error: %v", err)
+	}
+	if result.HolonPath != "github.com/example/custom" {
+		t.Fatalf("HolonPath = %q, want %q", result.HolonPath, "github.com/example/custom")
+	}
+}
+
+func TestAddResolvesLatestTagWhenVersionMissing(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "holon.mod"), []byte("holon alpha-builder\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	restore := SetRemoteTagsForTesting(func(depPath string) ([]string, error) {
+		if depPath != "github.com/example/dep" {
+			t.Fatalf("unexpected depPath %q", depPath)
+		}
+		return []string{"v1.0.0", "v1.4.0", "v1.2.0"}, nil
+	})
+	t.Cleanup(restore)
+
+	result, err := Add(dir, "github.com/example/dep", "")
+	if err != nil {
+		t.Fatalf("Add returned error: %v", err)
+	}
+	if result.Dependency.Version != "v1.4.0" {
+		t.Fatalf("version = %q, want %q", result.Dependency.Version, "v1.4.0")
+	}
+}
+
 func TestUpdateSpecificModule(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "holon.mod"), []byte("holon alpha-builder\n\nrequire (\n    github.com/example/dep v1.0.0\n    github.com/example/keep v2.0.0\n)\n"), 0o644); err != nil {
@@ -110,5 +145,61 @@ func TestPullUsesOPPATHCache(t *testing.T) {
 	}
 	if result.Fetched[0].CachePath != cacheDir {
 		t.Fatalf("cache path = %q, want %q", result.Fetched[0].CachePath, cacheDir)
+	}
+}
+
+func TestTidyCanonicalizesHolonModAndLeavesLanguageFilesUntouched(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "holon.mod"), []byte("holon alpha-builder\n\nrequire (\n    github.com/example/dep v1.0.0\n    github.com/example/dep v1.2.0\n    github.com/example/zed v0.1.0\n)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "holon.sum"), []byte("github.com/example/dep v1.2.0 h1:keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	goModPath := filepath.Join(dir, "go.mod")
+	packageJSONPath := filepath.Join(dir, "package.json")
+	cargoPath := filepath.Join(dir, "Cargo.toml")
+	if err := os.WriteFile(goModPath, []byte("module example.com/demo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(packageJSONPath, []byte("{\"name\":\"demo\"}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cargoPath, []byte("[package]\nname = \"demo\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Tidy(dir)
+	if err != nil {
+		t.Fatalf("Tidy returned error: %v", err)
+	}
+	if len(result.Current) != 2 {
+		t.Fatalf("current dependency count = %d, want 2", len(result.Current))
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "holon.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	if strings.Count(content, "github.com/example/dep") != 1 {
+		t.Fatalf("holon.mod still contains duplicate dep entries: %s", content)
+	}
+	if !strings.Contains(content, "github.com/example/dep v1.2.0") {
+		t.Fatalf("holon.mod missing highest dep version: %s", content)
+	}
+
+	for path, want := range map[string]string{
+		goModPath:       "module example.com/demo\n",
+		packageJSONPath: "{\"name\":\"demo\"}\n",
+		cargoPath:       "[package]\nname = \"demo\"\n",
+	} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(data) != want {
+			t.Fatalf("%s changed: got %q want %q", path, string(data), want)
+		}
 	}
 }

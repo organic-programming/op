@@ -49,11 +49,19 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 	}
 
 	report := baseInstallReport("install", target, ctx)
-	artifactPath := target.Manifest.PrimaryArtifactPath(ctx)
-	if artifactPath == "" {
-		return report, fmt.Errorf("no artifact declared for target %q mode %q", ctx.Target, ctx.Mode)
+	binaryName := target.Manifest.BinaryName()
+	if binaryName == "" {
+		return report, fmt.Errorf("holon %q has no installable binary (composite with artifacts.primary only)", report.Holon)
 	}
+	report.Binary = binaryName
+
+	artifactPath := target.Manifest.BinaryPath()
 	report.Artifact = workspaceRelativePath(artifactPath)
+
+	primaryArtifactPath := target.Manifest.PrimaryArtifactPath(ctx)
+	if primaryArtifactPath != "" && filepath.Clean(primaryArtifactPath) != filepath.Clean(artifactPath) {
+		return report, fmt.Errorf("holon %q has non-binary primary artifact %s; non-binary install is out of scope", report.Holon, workspaceRelativePath(primaryArtifactPath))
+	}
 
 	if _, err := os.Stat(artifactPath); err != nil {
 		if !os.IsNotExist(err) {
@@ -63,26 +71,23 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 			return report, fmt.Errorf("artifact missing: %s", report.Artifact)
 		}
 
-		buildReport, buildErr := ExecuteLifecycle(OperationBuild, ref)
+		_, buildErr := ExecuteLifecycle(OperationBuild, ref)
 		if buildErr != nil {
 			report.Notes = append(report.Notes, "build failed before install")
 			return report, buildErr
 		}
 		report.Notes = append(report.Notes, "artifact missing; built before install")
-		if buildReport.Artifact != "" {
-			report.Artifact = buildReport.Artifact
+		if _, statErr := os.Stat(artifactPath); statErr != nil {
+			if os.IsNotExist(statErr) {
+				return report, fmt.Errorf("artifact missing: %s", report.Artifact)
+			}
+			return report, statErr
 		}
 	}
 
 	if err := openv.Init(); err != nil {
 		return report, fmt.Errorf("prepare %s: %w", openv.OPBIN(), err)
 	}
-
-	binaryName := binaryNameForTarget(target, artifactPath)
-	if binaryName == "" {
-		return report, fmt.Errorf("cannot resolve install name for %q", target.Ref)
-	}
-	report.Binary = binaryName
 
 	installedPath := filepath.Join(openv.OPBIN(), binaryName)
 	if err := copyFile(artifactPath, installedPath); err != nil {
@@ -109,7 +114,11 @@ func Uninstall(ref string) (InstallReport, error) {
 
 	binaryName := strings.TrimSpace(ref)
 	if err == nil {
-		binaryName = binaryNameForTarget(target, "")
+		if manifestBinary := target.Manifest.BinaryName(); manifestBinary != "" {
+			binaryName = manifestBinary
+		} else {
+			binaryName = binaryNameForTarget(target, "")
+		}
 	}
 	if binaryName == "" {
 		return report, fmt.Errorf("cannot resolve install name for %q", ref)
@@ -149,20 +158,12 @@ func baseInstallReport(operation string, target *Target, ctx BuildContext) Insta
 
 func binaryNameForTarget(target *Target, artifactPath string) string {
 	if target != nil && target.Manifest != nil {
-		if binary := strings.TrimSpace(target.Manifest.Manifest.Artifacts.Binary); binary != "" {
-			return filepath.Base(binary)
-		}
-		if resolved := target.Manifest.BinaryPath(); resolved != "" {
-			return filepath.Base(resolved)
+		if binary := target.Manifest.BinaryName(); binary != "" {
+			return binary
 		}
 	}
 	if trimmed := strings.TrimSpace(artifactPath); trimmed != "" {
 		return filepath.Base(trimmed)
-	}
-	if target != nil && target.Identity != nil {
-		if slug := identitySlug(*target.Identity); slug != "" {
-			return slug
-		}
 	}
 	if target != nil {
 		return filepath.Base(target.Dir)
