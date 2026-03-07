@@ -55,6 +55,8 @@ func Run(args []string, version string) int {
 	case "help", "--help", "-h":
 		PrintUsage()
 		return 0
+	case "new", "list", "show":
+		return cmdPromotedVerb(format, cmd, rest)
 
 	// --- URI dispatch: grpc://, grpc+stdio://, grpc+unix://, grpc+ws:// ---
 	default:
@@ -78,9 +80,8 @@ Global flags (must come before <holon> or URI):
 
 Holon dispatch (transport chain):
   op <holon> <command> [args]            dispatch via mem://, stdio://, or tcp://
-  op who list [root]                     mapped RPC: ListIdentities
-  op who show <uuid>                     mapped RPC: ShowIdentity
-  op who new <json>                      mapped RPC: CreateIdentity
+  op sophia-who list [root]              mapped RPC: ListIdentities
+  op who list [root]                     alias of sophia-who over mem://
 
 Direct gRPC URI dispatch:
   op grpc://<host:port> <method>         gRPC over TCP (existing server)
@@ -91,6 +92,9 @@ Direct gRPC URI dispatch:
   op run <holon> --listen <URI>          start with any transport
 
 OP commands:
+  op list [root]                         promoted verb via sophia-who
+  op show <uuid>                         promoted verb via sophia-who
+  op new <json>                          promoted verb via sophia-who
   op check [<holon-or-path>]             validate holon.yaml and prerequisites
   op build [<holon-or-path>] [flags]     build a holon artifact via its runner
   op test [<holon-or-path>]              run a holon's test contract
@@ -201,6 +205,10 @@ func discoverDisplayName(entry discoverEntry) string {
 		return "-"
 	}
 	return name
+}
+
+func cmdPromotedVerb(format Format, verb string, args []string) int {
+	return cmdHolon(format, "sophia-who", append([]string{verb}, args...))
 }
 
 func cmdServe(args []string) int {

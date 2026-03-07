@@ -11,8 +11,21 @@ func TestDialMemHolon_SophiaListIdentities(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
 
-	seedTransportHolon(t, root, "who", "go")
-	seedTransportHolon(t, root, "atlas", "go")
+	seedTransportHolon(t, root, transportHolonSeed{
+		dirName:    "sophia-who",
+		givenName:  "Sophia",
+		familyName: "Who?",
+		aliases:    []string{"who", "sophia"},
+		lang:       "go",
+	})
+	seedTransportHolon(t, root, transportHolonSeed{
+		dirName:    "atlas",
+		binaryName: "atlas",
+		givenName:  "atlas",
+		familyName: "Holon",
+		aliases:    []string{"atlas"},
+		lang:       "go",
+	})
 
 	ctx := context.Background()
 

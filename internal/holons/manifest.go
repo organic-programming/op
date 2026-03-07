@@ -24,17 +24,18 @@ const (
 
 type Manifest struct {
 	// Identity fields — present in holon.yaml but not used by lifecycle.
-	Schema     string   `yaml:"schema"`
-	UUID       string   `yaml:"uuid,omitempty"`
-	GivenName  string   `yaml:"given_name,omitempty"`
-	FamilyName string   `yaml:"family_name,omitempty"`
-	Motto      string   `yaml:"motto,omitempty"`
-	Composer   string   `yaml:"composer,omitempty"`
-	Clade      string   `yaml:"clade,omitempty"`
-	Status     string   `yaml:"status,omitempty"`
-	Born       string   `yaml:"born,omitempty"`
-	Lang       string   `yaml:"lang,omitempty"`
-	Aliases    []string `yaml:"aliases,omitempty"`
+	Schema      string   `yaml:"schema"`
+	UUID        string   `yaml:"uuid,omitempty"`
+	GivenName   string   `yaml:"given_name,omitempty"`
+	FamilyName  string   `yaml:"family_name,omitempty"`
+	Motto       string   `yaml:"motto,omitempty"`
+	Composer    string   `yaml:"composer,omitempty"`
+	Clade       string   `yaml:"clade,omitempty"`
+	Status      string   `yaml:"status,omitempty"`
+	Born        string   `yaml:"born,omitempty"`
+	Lang        string   `yaml:"lang,omitempty"`
+	Aliases     []string `yaml:"aliases,omitempty"`
+	ProtoStatus string   `yaml:"proto_status,omitempty"`
 
 	// Lineage fields.
 	Parents      []string `yaml:"parents,omitempty"`

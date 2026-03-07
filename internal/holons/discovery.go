@@ -13,7 +13,11 @@ import (
 
 var searchRootCandidates = []string{
 	"holons",
+	"examples",
+	"recipes",
 	filepath.Join("organic-programming", "holons"),
+	filepath.Join("organic-programming", "examples"),
+	filepath.Join("organic-programming", "recipes"),
 }
 
 type Target struct {
@@ -141,10 +145,19 @@ func ResolveBinary(name string) (string, error) {
 		}
 	}
 
-	names := []string{name}
+	var names []string
+	if target != nil {
+		names = append(names, filepath.Base(target.Dir))
+		if target.Manifest != nil {
+			names = append(names, filepath.Base(target.Manifest.Manifest.Artifacts.Binary))
+		}
+	}
 	if target != nil && target.Identity != nil {
-		names = append(names, target.Identity.Aliases...)
 		names = append(names, identitySlug(*target.Identity))
+		names = append(names, strings.ToLower(strings.TrimSpace(target.Identity.GivenName)))
+	}
+	if target == nil || requestedMatchesCanonicalName(name, target) {
+		names = append(names, name)
 	}
 
 	for _, candidate := range uniqueNonEmpty(names) {
@@ -154,6 +167,43 @@ func ResolveBinary(name string) (string, error) {
 	}
 
 	return "", fmt.Errorf("holon %q not found", name)
+}
+
+func requestedMatchesCanonicalName(requested string, target *Target) bool {
+	if target == nil {
+		return true
+	}
+	trimmed := strings.TrimSpace(requested)
+	if trimmed == "" {
+		return false
+	}
+	for _, candidate := range uniqueNonEmpty([]string{
+		filepath.Base(target.Dir),
+		identitySlugValue(target),
+		strings.ToLower(strings.TrimSpace(identityGivenName(target))),
+	}) {
+		if strings.EqualFold(trimmed, candidate) {
+			return true
+		}
+	}
+	if target.Manifest != nil && strings.EqualFold(trimmed, filepath.Base(target.Manifest.Manifest.Artifacts.Binary)) {
+		return true
+	}
+	return false
+}
+
+func identitySlugValue(target *Target) string {
+	if target == nil || target.Identity == nil {
+		return ""
+	}
+	return identitySlug(*target.Identity)
+}
+
+func identityGivenName(target *Target) string {
+	if target == nil || target.Identity == nil {
+		return ""
+	}
+	return target.Identity.GivenName
 }
 
 func DiscoverInPath() []string {
@@ -190,13 +240,10 @@ func resolveDir(ref, dir string) (*Target, error) {
 		RelativePath: workspaceRelativePath(absDir),
 	}
 
-	identityPath := filepath.Join(absDir, "HOLON.md")
-	if data, err := os.ReadFile(identityPath); err == nil {
-		id, _, parseErr := identity.ParseFrontmatter(data)
-		if parseErr == nil {
-			target.Identity = &id
-			target.IdentityPath = identityPath
-		}
+	identityPath := filepath.Join(absDir, ManifestFileName)
+	if id, _, err := identity.ReadHolonYAML(identityPath); err == nil {
+		target.Identity = &id
+		target.IdentityPath = identityPath
 	}
 
 	manifestPath := filepath.Join(absDir, ManifestFileName)
@@ -226,7 +273,7 @@ func existingTargetDir(ref string) (string, bool, error) {
 	}
 
 	switch filepath.Base(ref) {
-	case "HOLON.md", ManifestFileName:
+	case ManifestFileName:
 		return filepath.Dir(ref), true, nil
 	default:
 		return "", false, fmt.Errorf("%s is not a holon directory", ref)

@@ -6,15 +6,14 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/organic-programming/go-holons/pkg/transport"
 	"github.com/organic-programming/grace-op/internal/holons"
 	sophiapb "github.com/organic-programming/sophia-who/gen/go/sophia_who/v1"
 	"github.com/organic-programming/sophia-who/pkg/identity"
+	sophiaservice "github.com/organic-programming/sophia-who/pkg/service"
 
 	pb "github.com/organic-programming/grace-op/gen/go/op/v1"
 
@@ -25,6 +24,8 @@ import (
 // Server implements the OPService gRPC interface.
 type Server struct {
 	pb.UnimplementedOPServiceServer
+
+	sophia sophiaservice.Server
 }
 
 // --- OP-native RPCs ---
@@ -36,7 +37,7 @@ func (s *Server) Discover(ctx context.Context, req *pb.DiscoverRequest) (*pb.Dis
 		root = "."
 	}
 
-	localHolons, err := identity.FindAll(root)
+	localHolons, err := identity.FindAllWithPaths(root)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +45,7 @@ func (s *Server) Discover(ctx context.Context, req *pb.DiscoverRequest) (*pb.Dis
 	entries := make([]*pb.HolonEntry, 0, len(localHolons))
 	for _, h := range localHolons {
 		entries = append(entries, &pb.HolonEntry{
-			Identity: toProto(h),
+			Identity: toProto(h.Identity),
 			Origin:   "local",
 		})
 	}
@@ -92,96 +93,17 @@ func (s *Server) Invoke(ctx context.Context, req *pb.InvokeRequest) (*pb.InvokeR
 
 // CreateIdentity creates a new holon identity.
 func (s *Server) CreateIdentity(ctx context.Context, req *sophiapb.CreateIdentityRequest) (*sophiapb.CreateIdentityResponse, error) {
-	id := identity.New()
-
-	if req.GivenName == "" || req.FamilyName == "" || req.Motto == "" || req.Composer == "" {
-		return nil, fmt.Errorf("given_name, family_name, motto, and composer are required")
-	}
-
-	id.GivenName = req.GivenName
-	id.FamilyName = req.FamilyName
-	id.Motto = req.Motto
-	id.Composer = req.Composer
-	if clade := cladeFromProto(req.Clade); clade != "" {
-		id.Clade = clade
-	}
-	if req.Lang != "" {
-		id.Lang = req.Lang
-	}
-	if len(req.Aliases) > 0 {
-		id.Aliases = req.Aliases
-	}
-	if reproduction := reproductionFromProto(req.Reproduction); reproduction != "" {
-		id.Reproduction = reproduction
-	}
-
-	outputDir := req.OutputDir
-	if outputDir == "" {
-		dirName := strings.ToLower(id.GivenName + "-" + strings.TrimSuffix(id.FamilyName, "?"))
-		dirName = strings.ReplaceAll(dirName, " ", "-")
-		outputDir = filepath.Join("holons", dirName)
-	}
-
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return nil, fmt.Errorf("cannot create directory: %w", err)
-	}
-
-	outputPath := filepath.Join(outputDir, "HOLON.md")
-	if err := identity.WriteHolonMD(id, outputPath); err != nil {
-		return nil, err
-	}
-
-	return &sophiapb.CreateIdentityResponse{
-		Identity: toProto(id),
-		FilePath: outputPath,
-	}, nil
+	return s.sophia.CreateIdentity(ctx, req)
 }
 
 // ListIdentities lists all known holon identities.
 func (s *Server) ListIdentities(ctx context.Context, req *sophiapb.ListIdentitiesRequest) (*sophiapb.ListIdentitiesResponse, error) {
-	root := req.RootDir
-	if root == "" {
-		root = "."
-	}
-
-	holons, err := identity.FindAll(root)
-	if err != nil {
-		return nil, err
-	}
-
-	entries := make([]*sophiapb.HolonEntry, 0, len(holons))
-	for _, h := range holons {
-		entries = append(entries, &sophiapb.HolonEntry{
-			Identity: toProto(h),
-			Origin:   "local",
-		})
-	}
-
-	return &sophiapb.ListIdentitiesResponse{Entries: entries}, nil
+	return s.sophia.ListIdentities(ctx, req)
 }
 
 // ShowIdentity retrieves a holon's identity by UUID.
 func (s *Server) ShowIdentity(ctx context.Context, req *sophiapb.ShowIdentityRequest) (*sophiapb.ShowIdentityResponse, error) {
-	path, err := identity.FindByUUID(".", req.Uuid)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read %s: %w", path, err)
-	}
-
-	id, _, err := identity.ParseFrontmatter(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return &sophiapb.ShowIdentityResponse{
-		Identity:   toProto(id),
-		FilePath:   path,
-		RawContent: string(data),
-	}, nil
+	return s.sophia.ShowIdentity(ctx, req)
 }
 
 // ListenAndServe starts the gRPC server on the given transport URI.
@@ -246,25 +168,6 @@ func cladeToProto(value string) sophiapb.Clade {
 	}
 }
 
-func cladeFromProto(value sophiapb.Clade) string {
-	switch value {
-	case sophiapb.Clade_DETERMINISTIC_PURE:
-		return "deterministic/pure"
-	case sophiapb.Clade_DETERMINISTIC_STATEFUL:
-		return "deterministic/stateful"
-	case sophiapb.Clade_DETERMINISTIC_IO_BOUND:
-		return "deterministic/io_bound"
-	case sophiapb.Clade_PROBABILISTIC_GENERATIVE:
-		return "probabilistic/generative"
-	case sophiapb.Clade_PROBABILISTIC_PERCEPTUAL:
-		return "probabilistic/perceptual"
-	case sophiapb.Clade_PROBABILISTIC_ADAPTIVE:
-		return "probabilistic/adaptive"
-	default:
-		return ""
-	}
-}
-
 func statusToProto(value string) sophiapb.Status {
 	switch strings.ToLower(value) {
 	case "draft":
@@ -294,22 +197,5 @@ func reproductionToProto(value string) sophiapb.ReproductionMode {
 		return sophiapb.ReproductionMode_BRED
 	default:
 		return sophiapb.ReproductionMode_REPRODUCTION_UNSPECIFIED
-	}
-}
-
-func reproductionFromProto(value sophiapb.ReproductionMode) string {
-	switch value {
-	case sophiapb.ReproductionMode_MANUAL:
-		return "manual"
-	case sophiapb.ReproductionMode_ASSISTED:
-		return "assisted"
-	case sophiapb.ReproductionMode_AUTOMATIC:
-		return "automatic"
-	case sophiapb.ReproductionMode_AUTOPOIETIC:
-		return "autopoietic"
-	case sophiapb.ReproductionMode_BRED:
-		return "bred"
-	default:
-		return ""
 	}
 }

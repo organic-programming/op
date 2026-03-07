@@ -1,6 +1,7 @@
 package holons
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,30 @@ import (
 
 	"github.com/organic-programming/sophia-who/pkg/identity"
 )
+
+func writeManifestWithIdentity(t *testing.T, dir string, id identity.Identity, suffix string) {
+	t.Helper()
+
+	manifest := fmt.Sprintf(
+		"schema: holon/v0\nuuid: %q\ngiven_name: %q\nfamily_name: %q\nmotto: %q\ncomposer: %q\nclade: %q\nstatus: %s\nborn: %q\nparents: []\nreproduction: %q\naliases: [%q]\ngenerated_by: %q\nlang: %q\nproto_status: draft\n%s",
+		id.UUID,
+		id.GivenName,
+		id.FamilyName,
+		id.Motto,
+		id.Composer,
+		id.Clade,
+		id.Status,
+		id.Born,
+		id.Reproduction,
+		strings.Join(id.Aliases, ", "),
+		id.GeneratedBy,
+		id.Lang,
+		suffix,
+	)
+	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte(manifest), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestLoadManifestRejectsUnknownField(t *testing.T) {
 	root := t.TempDir()
@@ -46,12 +71,7 @@ func TestResolveTargetByAliasAcrossRoots(t *testing.T) {
 		GeneratedBy: "test",
 		Lang:        "go",
 	}
-	if err := identity.WriteHolonMD(id, filepath.Join(dir, "HOLON.md")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\n  main: ./cmd/who\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/sophia-who\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	writeManifestWithIdentity(t, dir, id, "kind: native\nbuild:\n  runner: go-module\n  main: ./cmd/who\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/sophia-who\n")
 
 	target, err := ResolveTarget("who")
 	if err != nil {
@@ -83,12 +103,7 @@ func TestResolveBinaryUsesCanonicalArtifactNameForAlias(t *testing.T) {
 		GeneratedBy: "test",
 		Lang:        "go",
 	}
-	if err := identity.WriteHolonMD(id, filepath.Join(dir, "HOLON.md")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, ManifestFileName), []byte("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\n  main: ./cmd/who\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/sophia-who\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	writeManifestWithIdentity(t, dir, id, "kind: native\nbuild:\n  runner: go-module\n  main: ./cmd/who\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: .op/build/bin/sophia-who\n")
 	binaryPath := filepath.Join(dir, ".op", "build", "bin", "sophia-who")
 	if err := os.WriteFile(binaryPath, []byte("#!/bin/sh\n"), 0755); err != nil {
 		t.Fatal(err)

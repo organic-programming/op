@@ -5,36 +5,9 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/organic-programming/sophia-who/pkg/identity"
 )
-
-// seedHolon creates a HOLON.md in a temp subdirectory for testing.
-func seedHolon(t *testing.T, root, uuid, givenName string) {
-	t.Helper()
-	dir := filepath.Join(root, givenName)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	id := identity.Identity{
-		UUID:        uuid,
-		GivenName:   givenName,
-		FamilyName:  "Test",
-		Motto:       "Testing.",
-		Composer:    "Test",
-		Clade:       "deterministic/pure",
-		Status:      "draft",
-		Born:        "2026-01-01",
-		GeneratedBy: "test",
-		Lang:        "go",
-	}
-	if err := identity.WriteHolonMD(id, filepath.Join(dir, "HOLON.md")); err != nil {
-		t.Fatal(err)
-	}
-}
 
 func TestVersionCommand(t *testing.T) {
 	code := Run([]string{"version"}, "0.1.0-test")
@@ -56,12 +29,43 @@ func TestRunWhoListThroughTransportChain(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
 
-	seedTransportHolon(t, root, "who", "go")
-	seedTransportHolon(t, root, "atlas", "go")
+	seedTransportHolon(t, root, transportHolonSeed{
+		dirName:    "sophia-who",
+		givenName:  "Sophia",
+		familyName: "Who?",
+		aliases:    []string{"who", "sophia"},
+		lang:       "go",
+	})
+	seedTransportHolon(t, root, transportHolonSeed{
+		dirName:    "atlas",
+		binaryName: "atlas",
+		givenName:  "atlas",
+		familyName: "Holon",
+		aliases:    []string{"atlas"},
+		lang:       "go",
+	})
 
 	code := Run([]string{"who", "list", "holons"}, "0.1.0-test")
 	if code != 0 {
 		t.Fatalf("who list returned %d, want 0", code)
+	}
+}
+
+func TestRunPromotedListThroughSophiaWho(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+
+	seedTransportHolon(t, root, transportHolonSeed{
+		dirName:    "sophia-who",
+		givenName:  "Sophia",
+		familyName: "Who?",
+		aliases:    []string{"who", "sophia"},
+		lang:       "go",
+	})
+
+	code := Run([]string{"list", "holons"}, "0.1.0-test")
+	if code != 0 {
+		t.Fatalf("list returned %d, want 0", code)
 	}
 }
 
@@ -135,8 +139,22 @@ func TestMapHolonCommandToRPC(t *testing.T) {
 func TestDiscoverCommand(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
-	seedTransportHolon(t, root, "who", "go")
-	seedTransportHolon(t, root, "atlas", "rust")
+	seedTransportHolon(t, root, transportHolonSeed{
+		dirName:    "who",
+		binaryName: "who",
+		givenName:  "who",
+		familyName: "Holon",
+		aliases:    []string{"who"},
+		lang:       "go",
+	})
+	seedTransportHolon(t, root, transportHolonSeed{
+		dirName:    "atlas",
+		binaryName: "atlas",
+		givenName:  "atlas",
+		familyName: "Holon",
+		aliases:    []string{"atlas"},
+		lang:       "rust",
+	})
 
 	output := captureStdout(t, func() {
 		code := Run([]string{"discover"}, "0.1.0-test")
@@ -171,8 +189,22 @@ func TestDiscoverCommand(t *testing.T) {
 func TestDiscoverCommandJSONFormat(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
-	seedTransportHolon(t, root, "who", "go")
-	seedTransportHolon(t, root, "atlas", "rust")
+	seedTransportHolon(t, root, transportHolonSeed{
+		dirName:    "who",
+		binaryName: "who",
+		givenName:  "who",
+		familyName: "Holon",
+		aliases:    []string{"who"},
+		lang:       "go",
+	})
+	seedTransportHolon(t, root, transportHolonSeed{
+		dirName:    "atlas",
+		binaryName: "atlas",
+		givenName:  "atlas",
+		familyName: "Holon",
+		aliases:    []string{"atlas"},
+		lang:       "rust",
+	})
 
 	output := captureStdout(t, func() {
 		code := Run([]string{"--format", "json", "discover"}, "0.1.0-test")

@@ -13,8 +13,7 @@ import (
 	holonsgrpcclient "github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/transport"
 	sophiapb "github.com/organic-programming/sophia-who/gen/go/sophia_who/v1"
-
-	opserver "github.com/organic-programming/grace-op/internal/server"
+	sophiaservice "github.com/organic-programming/sophia-who/pkg/service"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -41,27 +40,8 @@ var memComposeRegistry = map[string]*memHolonComposer{
 	"sophia-who": sophiaMemComposer,
 }
 
-type sophiaWhoAdapter struct {
-	sophiapb.UnimplementedSophiaWhoServiceServer
-	delegate *opserver.Server
-}
-
-func (a *sophiaWhoAdapter) CreateIdentity(ctx context.Context, req *sophiapb.CreateIdentityRequest) (*sophiapb.CreateIdentityResponse, error) {
-	return a.delegate.CreateIdentity(ctx, req)
-}
-
-func (a *sophiaWhoAdapter) ShowIdentity(ctx context.Context, req *sophiapb.ShowIdentityRequest) (*sophiapb.ShowIdentityResponse, error) {
-	return a.delegate.ShowIdentity(ctx, req)
-}
-
-func (a *sophiaWhoAdapter) ListIdentities(ctx context.Context, req *sophiapb.ListIdentitiesRequest) (*sophiapb.ListIdentitiesResponse, error) {
-	return a.delegate.ListIdentities(ctx, req)
-}
-
 func registerSophiaWhoService(s *grpc.Server) {
-	sophiapb.RegisterSophiaWhoServiceServer(s, &sophiaWhoAdapter{
-		delegate: &opserver.Server{},
-	})
+	sophiaservice.RegisterGRPC(s)
 }
 
 func dialMemHolon(ctx context.Context, holonName string) (*grpc.ClientConn, error) {
@@ -93,6 +73,11 @@ func resolveMemComposer(holonName string) (*memHolonComposer, error) {
 		return nil, fmt.Errorf("mem composition not available for holon %q", holonName)
 	}
 	return composer, nil
+}
+
+func hasMemComposer(holonName string) bool {
+	_, err := resolveMemComposer(holonName)
+	return err == nil
 }
 
 func cmdGRPCMem(format Format, holonName string, args []string) int {

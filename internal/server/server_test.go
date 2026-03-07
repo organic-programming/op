@@ -61,7 +61,7 @@ func startTestServer(t *testing.T, root string) (pb.OPServiceClient, func()) {
 	return pb.NewOPServiceClient(conn), cleanup
 }
 
-// seedHolon creates a HOLON.md in a temp subdirectory.
+// seedHolon creates a holon.yaml in a temp subdirectory.
 func seedHolon(t *testing.T, root, uuid, givenName string) {
 	t.Helper()
 	dir := filepath.Join(root, givenName)
@@ -80,7 +80,7 @@ func seedHolon(t *testing.T, root, uuid, givenName string) {
 		GeneratedBy: "test",
 		Lang:        "go",
 	}
-	if err := identity.WriteHolonMD(id, filepath.Join(dir, "HOLON.md")); err != nil {
+	if err := identity.WriteHolonYAML(id, filepath.Join(dir, identity.ManifestFileName)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -189,7 +189,7 @@ func TestCreateIdentity(t *testing.T) {
 		t.Errorf("GivenName = %q, want %q", resp.Identity.GivenName, "NewHolon")
 	}
 	if _, err := os.Stat(resp.FilePath); err != nil {
-		t.Errorf("HOLON.md not created: %v", err)
+		t.Errorf("holon.yaml not created: %v", err)
 	}
 }
 

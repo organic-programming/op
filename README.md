@@ -28,14 +28,15 @@ sudo mv op /usr/local/bin/   # or anywhere in your PATH
 ## Usage
 
 ```
-# Promoted verbs (delegated to Sophia-Who binary)
+# Promoted verbs (delegated to the `sophia-who` holon over mem://)
 op new                               → create a new holon identity
 op list                              → list all known holons
 op show <uuid>                       → display a holon's identity
 op pin <uuid> --version 1.0.0        → capture version/commit/arch
 
 # Full namespace (dispatch to any holon binary)
-op who list                          → same as op list
+op sophia-who list                   → direct holon dispatch
+op who list                          → alias of sophia-who
 op atlas pull                        → marco-atlas
 op translate file.md --to fr         → abel-fishel-translator
 
@@ -46,28 +47,29 @@ op version                           → show op version
 
 ## Sophia Who? list over every transport
 
-Use `ListIdentities` (the gRPC equivalent of `who list`) through each
+Use `ListIdentities` (the gRPC equivalent of `sophia-who list`) through each
 transport supported by Sophia Who?:
 
 ```bash
 # 1) CLI facet (delegated command)
 op who list .
+op sophia-who list .
 
-# 2) Promoted verb (same provider behavior as `who list`)
+# 2) Promoted verb (same provider behavior as `sophia-who list`)
 op list .
 
 # 3) gRPC over TCP (persistent server)
-op run who:9090
+op run sophia-who:9090
 op grpc://localhost:9090 ListIdentities '{}'
 # stop with: kill <pid printed by op run>
 
 # 4) gRPC over Unix socket (persistent server)
-op run who --listen unix:///tmp/who.sock
+op run sophia-who --listen unix:///tmp/who.sock
 op grpc+unix:///tmp/who.sock ListIdentities '{}'
 # stop with: kill <pid printed by op run>
 
 # 5) gRPC over stdio (ephemeral, no `op run`)
-op grpc+stdio://who ListIdentities '{}'
+op grpc+stdio://sophia-who ListIdentities '{}'
 ```
 
 ## Status
