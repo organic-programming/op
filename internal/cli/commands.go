@@ -53,6 +53,8 @@ func Run(args []string, version string) int {
 		return cmdRun(format, quiet, rest)
 	case "discover":
 		return cmdDiscover(format)
+	case "inspect":
+		return cmdInspect(format, rest)
 	case "env":
 		return cmdEnv(format, rest)
 	case "serve":
@@ -103,6 +105,7 @@ OP commands:
   op list [root]                         list local + cached holons natively
   op show <uuid-or-prefix>               display a holon identity natively
   op new [--json <payload>]              create a holon identity natively
+  op inspect <slug|host:port> [--json]   inspect a holon's API offline or via Describe
   op check [<holon-or-path>]             validate holon.yaml and prerequisites
   op build [<holon-or-path>] [flags]     build a holon artifact via its runner
   op test [<holon-or-path>]              run a holon's test contract

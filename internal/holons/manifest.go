@@ -43,7 +43,8 @@ type Manifest struct {
 	GeneratedBy  string   `yaml:"generated_by,omitempty"`
 
 	// Description.
-	Description string `yaml:"description,omitempty"`
+	Description string  `yaml:"description,omitempty"`
+	Skills      []Skill `yaml:"skills,omitempty"`
 
 	// Operational fields — used by lifecycle.
 	Kind      string        `yaml:"kind"`
@@ -55,6 +56,13 @@ type Manifest struct {
 
 	// Contract fields — not used by lifecycle.
 	Contract interface{} `yaml:"contract,omitempty"`
+}
+
+type Skill struct {
+	Name        string   `yaml:"name"`
+	Description string   `yaml:"description"`
+	When        string   `yaml:"when,omitempty"`
+	Steps       []string `yaml:"steps"`
 }
 
 type BuildConfig struct {

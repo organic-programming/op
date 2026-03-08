@@ -3,6 +3,7 @@ module github.com/organic-programming/grace-op
 go 1.25.1
 
 require (
+	github.com/jhump/protoreflect v1.18.0
 	github.com/organic-programming/go-holons v0.2.1-0.20260212114054-8fbeaa095fb9
 	github.com/organic-programming/sophia-who v0.0.0-20260307110200-0cbfa5acdf7f
 	golang.org/x/term v0.38.0
@@ -13,8 +14,13 @@ require (
 )
 
 require (
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/jhump/protoreflect/v2 v2.0.0-beta.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/petermattis/goid v0.0.0-20260113132338-7c7de50cc741 // indirect
 	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda // indirect
