@@ -9,7 +9,10 @@ import (
 	"github.com/organic-programming/grace-op/internal/cli"
 )
 
-const version = "0.1.0"
+var (
+	version = "0.1.0"
+	commit  = "unknown" // set via: -ldflags "-X main.commit=..."
+)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -17,7 +20,12 @@ func main() {
 		os.Exit(0)
 	}
 
-	code := cli.Run(os.Args[1:], version)
+	versionStr := version
+	if commit != "unknown" && len(commit) >= 7 {
+		versionStr = version + " (" + commit[:7] + ")"
+	}
+
+	code := cli.Run(os.Args[1:], versionStr)
 	os.Exit(code)
 }
 
