@@ -71,6 +71,10 @@ func Run(args []string, version string) int {
 	case "version":
 		fmt.Printf("op %s\n", version)
 		return 0
+	case "completion":
+		return cmdCompletion(rest)
+	case "__complete":
+		return cmdComplete(rest)
 	case "help", "--help", "-h":
 		PrintUsage()
 		return 0
