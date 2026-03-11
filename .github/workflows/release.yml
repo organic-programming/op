@@ -13,7 +13,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,13 +52,11 @@ jobs:
             dist/winget/*.yaml
 
       - name: Publish npm Packages
-        if: ${{ secrets.NPM_TOKEN != '' }}
+        if: ${{ env.NPM_TOKEN != '' }}
         run: node ./packaging/npm/publish.mjs dist/npm
 
       - name: Update Homebrew Tap
-        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
-        env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        if: ${{ env.HOMEBREW_TAP_TOKEN != '' }}
         run: |
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/organic-programming/homebrew-tap.git" /tmp/homebrew-tap
           mkdir -p /tmp/homebrew-tap/Formula
