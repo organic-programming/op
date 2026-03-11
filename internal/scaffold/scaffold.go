@@ -59,10 +59,10 @@ type compositeSpec struct {
 var compositeDaemons = map[string]compositeSpec{
 	"go":     {lang: "go", runner: "go-module"},
 	"rust":   {lang: "rust", runner: "cargo"},
-	"python": {lang: "python", runner: "recipe"},
+	"python": {lang: "python", runner: "python"},
 	"swift":  {lang: "swift", runner: "swift-package"},
 	"kotlin": {lang: "kotlin", runner: "gradle"},
-	"dart":   {lang: "dart", runner: "flutter"},
+	"dart":   {lang: "dart", runner: "dart"},
 	"csharp": {lang: "csharp", runner: "dotnet"},
 	"node":   {lang: "node", runner: "npm"},
 	"cpp":    {lang: "cpp", runner: "cmake"},

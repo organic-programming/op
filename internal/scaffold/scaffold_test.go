@@ -92,3 +92,101 @@ func TestGenerateCompositeAliasRendersKinds(t *testing.T) {
 		}
 	}
 }
+
+func TestGeneratePythonDaemonUsesPythonRunner(t *testing.T) {
+	root := t.TempDir()
+
+	result, err := Generate("python-daemon", "serene-service", GenerateOptions{Dir: root})
+	if err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+	if result.Template != "python-daemon" {
+		t.Fatalf("result.Template = %q, want %q", result.Template, "python-daemon")
+	}
+
+	manifestPath := filepath.Join(root, "serene-service", "holon.yaml")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
+	}
+	content := string(data)
+	for _, expected := range []string{
+		"kind: composite",
+		"runner: python",
+		"files: [app/main.py]",
+		"primary: app/main.py",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("manifest missing %q:\n%s", expected, content)
+		}
+	}
+	if strings.Contains(content, "runner: recipe") {
+		t.Fatalf("manifest still references recipe runner:\n%s", content)
+	}
+}
+
+func TestGenerateDartDaemonUsesDartRunnerAndBinMain(t *testing.T) {
+	root := t.TempDir()
+
+	result, err := Generate("dart-daemon", "steady-engine", GenerateOptions{Dir: root})
+	if err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+	if result.Template != "dart-daemon" {
+		t.Fatalf("result.Template = %q, want %q", result.Template, "dart-daemon")
+	}
+
+	manifestPath := filepath.Join(root, "steady-engine", "holon.yaml")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
+	}
+	content := string(data)
+	for _, expected := range []string{
+		"kind: native",
+		"runner: dart",
+		"commands: [dart]",
+		"files: [pubspec.yaml, bin/main.dart]",
+		"binary: steady-engine",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("manifest missing %q:\n%s", expected, content)
+		}
+	}
+
+	if _, err := os.Stat(filepath.Join(root, "steady-engine", "bin", "main.dart")); err != nil {
+		t.Fatalf("bin/main.dart missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "steady-engine", "lib", "main.dart")); !os.IsNotExist(err) {
+		t.Fatalf("lib/main.dart should not exist, got: %v", err)
+	}
+}
+
+func TestGenerateCompositeAliasesUseUpdatedDaemonRunners(t *testing.T) {
+	tests := []struct {
+		template   string
+		slug       string
+		wantRunner string
+	}{
+		{template: "composite-python-swiftui", slug: "mist-console", wantRunner: "python"},
+		{template: "composite-dart-web", slug: "pulse-console", wantRunner: "dart"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.template, func(t *testing.T) {
+			root := t.TempDir()
+			if _, err := Generate(tc.template, tc.slug, GenerateOptions{Dir: root}); err != nil {
+				t.Fatalf("Generate() failed: %v", err)
+			}
+
+			readmePath := filepath.Join(root, tc.slug, "daemon", "README.md")
+			data, err := os.ReadFile(readmePath)
+			if err != nil {
+				t.Fatalf("ReadFile(%s) failed: %v", readmePath, err)
+			}
+			if !strings.Contains(string(data), "Runner: "+tc.wantRunner) {
+				t.Fatalf("daemon README missing runner %q:\n%s", tc.wantRunner, string(data))
+			}
+		})
+	}
+}

@@ -838,6 +838,129 @@ func TestBuildCommandQuietSuppressesProgressAndSuggestions(t *testing.T) {
 	}
 }
 
+func TestCheckAndDryRunBuildSupportPythonDartAndRubyRunners(t *testing.T) {
+	tests := []struct {
+		name             string
+		setup            func(t *testing.T, root, toolDir string) string
+		wantCheckRunner  string
+		wantBuildRunner  string
+		wantBuildCommand string
+	}{
+		{
+			name: "python",
+			setup: func(t *testing.T, root, toolDir string) string {
+				t.Helper()
+				writeFakeCommand(t, toolDir, "python")
+				dir := filepath.Join(root, "py-demo")
+				if err := os.MkdirAll(filepath.Join(dir, "app"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "app", "main.py"), []byte("print('ok')\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "requirements.txt"), []byte("pytest\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				manifest := "schema: holon/v0\nkind: composite\nbuild:\n  runner: python\nrequires:\n  files: [app/main.py]\nartifacts:\n  primary: app/main.py\n"
+				if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte(manifest), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				return dir
+			},
+			wantCheckRunner:  "Runner: python",
+			wantBuildRunner:  "Runner: python",
+			wantBuildCommand: "python -m pip install -r requirements.txt",
+		},
+		{
+			name: "dart",
+			setup: func(t *testing.T, root, toolDir string) string {
+				t.Helper()
+				writeFakeCommand(t, toolDir, "dart")
+				dir := filepath.Join(root, "dart-demo")
+				if err := os.MkdirAll(filepath.Join(dir, "bin"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "pubspec.yaml"), []byte("name: demo\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "bin", "main.dart"), []byte("void main() {}\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				manifest := "schema: holon/v0\nkind: native\nbuild:\n  runner: dart\nrequires:\n  commands: [dart]\n  files: [pubspec.yaml, bin/main.dart]\nartifacts:\n  binary: dart-demo\n"
+				if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte(manifest), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				return dir
+			},
+			wantCheckRunner:  "Runner: dart",
+			wantBuildRunner:  "Runner: dart",
+			wantBuildCommand: "dart compile exe bin/main.dart -o ",
+		},
+		{
+			name: "ruby",
+			setup: func(t *testing.T, root, toolDir string) string {
+				t.Helper()
+				writeFakeCommand(t, toolDir, "ruby")
+				writeFakeCommand(t, toolDir, "bundle")
+				dir := filepath.Join(root, "ruby-demo")
+				if err := os.MkdirAll(filepath.Join(dir, "app"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "Gemfile"), []byte("source 'https://example.test'\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "app", "main.rb"), []byte("puts 'ok'\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				manifest := "schema: holon/v0\nkind: composite\nbuild:\n  runner: ruby\nrequires:\n  files: [Gemfile, app/main.rb]\nartifacts:\n  primary: app/main.rb\n"
+				if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte(manifest), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				return dir
+			},
+			wantCheckRunner:  "Runner: ruby",
+			wantBuildRunner:  "Runner: ruby",
+			wantBuildCommand: "bundle install",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			toolDir := t.TempDir()
+			chdirForTest(t, root)
+			t.Setenv("PATH", toolDir)
+			dir := tc.setup(t, root, toolDir)
+
+			checkStdout, checkStderr := captureOutput(t, func() {
+				code := Run([]string{"check", dir}, "0.1.0-test")
+				if code != 0 {
+					t.Fatalf("check returned %d, want 0", code)
+				}
+			})
+			if !strings.Contains(checkStdout, "Operation: check") || !strings.Contains(checkStdout, tc.wantCheckRunner) {
+				t.Fatalf("unexpected check output:\nstdout=%s\nstderr=%s", checkStdout, checkStderr)
+			}
+			if strings.TrimSpace(checkStderr) != "" {
+				t.Fatalf("check stderr not empty: %q", checkStderr)
+			}
+
+			buildStdout, buildStderr := captureOutput(t, func() {
+				code := Run([]string{"build", "--dry-run", dir}, "0.1.0-test")
+				if code != 0 {
+					t.Fatalf("build --dry-run returned %d, want 0", code)
+				}
+			})
+			if !strings.Contains(buildStdout, "Operation: build") || !strings.Contains(buildStdout, tc.wantBuildRunner) {
+				t.Fatalf("unexpected dry-run build stdout:\nstdout=%s\nstderr=%s", buildStdout, buildStderr)
+			}
+			if !strings.Contains(buildStderr, tc.wantBuildCommand) || !strings.Contains(buildStderr, "verifying artifact...") {
+				t.Fatalf("unexpected dry-run build stderr:\nstdout=%s\nstderr=%s", buildStdout, buildStderr)
+			}
+		})
+	}
+}
+
 func TestUninstallCommand(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
@@ -1661,6 +1784,22 @@ func writeRunServiceFixture(t *testing.T, dir, name string) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "holon.yaml"), []byte(fmt.Sprintf("schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nrequires:\n  commands: [go]\n  files: [go.mod]\nartifacts:\n  binary: %s\n", name)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeFakeCommand(t *testing.T, dir, name string) {
+	t.Helper()
+
+	path := filepath.Join(dir, name)
+	data := []byte("#!/bin/sh\nexit 0\n")
+	mode := os.FileMode(0o755)
+	if runtime.GOOS == "windows" {
+		path += ".bat"
+		data = []byte("@echo off\r\nexit /b 0\r\n")
+		mode = 0o644
+	}
+	if err := os.WriteFile(path, data, mode); err != nil {
 		t.Fatal(err)
 	}
 }

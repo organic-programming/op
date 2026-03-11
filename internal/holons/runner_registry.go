@@ -14,6 +14,9 @@ var runnerRegistry = map[string]runner{
 	RunnerGoModule: goModuleRunner{},
 	RunnerCMake:    cmakeRunner{},
 	RunnerCargo:    cargoRunner{},
+	RunnerPython:   pythonRunner{},
+	RunnerDart:     dartRunner{},
+	RunnerRuby:     rubyRunner{},
 	RunnerSwiftPkg: swiftPackageRunner{},
 	RunnerFlutter:  flutterRunner{},
 	RunnerNPM:      npmRunner{},
@@ -99,6 +102,122 @@ func hasCMakeProject(manifest *LoadedManifest) bool {
 	return err == nil && !info.IsDir()
 }
 
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+func firstAvailableCommand(candidates ...string) (string, error) {
+	for _, candidate := range candidates {
+		if _, err := exec.LookPath(candidate); err == nil {
+			return candidate, nil
+		}
+	}
+	quoted := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		quoted = append(quoted, fmt.Sprintf("%q", candidate))
+	}
+	return "", fmt.Errorf("missing required command on PATH; expected one of %s", strings.Join(quoted, ", "))
+}
+
+func pythonInterpreter() (string, error) {
+	interpreter, err := firstAvailableCommand("python3", "python")
+	if err != nil {
+		return "", fmt.Errorf("python runner requires python3 or python on PATH")
+	}
+	return interpreter, nil
+}
+
+func pythonBuildArgs(manifest *LoadedManifest) ([]string, bool, error) {
+	interpreter, err := pythonInterpreter()
+	if err != nil {
+		return nil, false, err
+	}
+	if !fileExists(filepath.Join(manifest.Dir, "requirements.txt")) {
+		return nil, false, nil
+	}
+	return []string{interpreter, "-m", "pip", "install", "-r", "requirements.txt"}, true, nil
+}
+
+func pythonTestArgs(manifest *LoadedManifest) ([]string, error) {
+	interpreter, err := pythonInterpreter()
+	if err != nil {
+		return nil, err
+	}
+	if dirExists(filepath.Join(manifest.Dir, "tests")) {
+		return []string{interpreter, "-m", "unittest", "discover"}, nil
+	}
+	if _, err := exec.LookPath("pytest"); err == nil {
+		return []string{"pytest"}, nil
+	}
+	return nil, fmt.Errorf("python runner requires tests/ or pytest on PATH")
+}
+
+func dartEntrypoint(manifest *LoadedManifest) (string, error) {
+	for _, rel := range []string{"bin/main.dart", "lib/main.dart"} {
+		if fileExists(filepath.Join(manifest.Dir, filepath.FromSlash(rel))) {
+			return rel, nil
+		}
+	}
+	return "", fmt.Errorf("dart runner requires bin/main.dart or lib/main.dart")
+}
+
+func rubyTestArgs(manifest *LoadedManifest) ([]string, error) {
+	if dirExists(filepath.Join(manifest.Dir, "spec")) {
+		return []string{"bundle", "exec", "rspec"}, nil
+	}
+	if fileExists(filepath.Join(manifest.Dir, "Rakefile")) {
+		return []string{"bundle", "exec", "rake", "test"}, nil
+	}
+	return nil, fmt.Errorf("ruby runner requires spec/ or Rakefile")
+}
+
+func removeSelectedPaths(root string, relPaths ...string) error {
+	for _, relPath := range relPaths {
+		if err := os.RemoveAll(filepath.Join(root, relPath)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeNamedDirs(root string, names ...string) error {
+	nameSet := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		nameSet[name] = struct{}{}
+	}
+
+	var matches []string
+	if err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		if _, ok := nameSet[d.Name()]; ok {
+			matches = append(matches, path)
+			return filepath.SkipDir
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	sort.Slice(matches, func(i, j int) bool { return len(matches[i]) > len(matches[j]) })
+	for _, match := range matches {
+		if err := os.RemoveAll(match); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type cargoRunner struct{}
 
 func (cargoRunner) check(manifest *LoadedManifest, _ BuildContext) error {
@@ -164,6 +283,205 @@ func cargoModeDir(mode string) string {
 		return "debug"
 	}
 	return "release"
+}
+
+type pythonRunner struct{}
+
+func (pythonRunner) check(_ *LoadedManifest, _ BuildContext) error {
+	_, err := pythonInterpreter()
+	return err
+}
+
+func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if err := ensureHostBuildTarget(RunnerPython, ctx); err != nil {
+		return err
+	}
+
+	args, ok, err := pythonBuildArgs(manifest)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		report.Notes = append(report.Notes, "no requirements.txt; skipping dependency install")
+		return nil
+	}
+	report.Commands = append(report.Commands, commandString(args))
+	ctx.Progress.Step(commandString(args))
+	if ctx.DryRun {
+		return nil
+	}
+	if output, err := runCommand(manifest.Dir, args); err != nil {
+		return fmt.Errorf("%s\n%s", err, output)
+	}
+	report.Notes = append(report.Notes, "python dependencies installed")
+	return nil
+}
+
+func (pythonRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if err := ensureHostBuildTarget(RunnerPython, ctx); err != nil {
+		return err
+	}
+
+	args, err := pythonTestArgs(manifest)
+	if err != nil {
+		return err
+	}
+	report.Commands = append(report.Commands, commandString(args))
+	ctx.Progress.Step(commandString(args))
+	if output, err := runCommand(manifest.Dir, args); err != nil {
+		return fmt.Errorf("%s\n%s", err, output)
+	}
+	report.Notes = append(report.Notes, "python tests passed")
+	return nil
+}
+
+func (pythonRunner) clean(manifest *LoadedManifest, report *Report) error {
+	if err := removeNamedDirs(manifest.Dir, "__pycache__"); err != nil {
+		return err
+	}
+	if err := removeSelectedPaths(manifest.Dir, ".pytest_cache", "build", "dist"); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(manifest.OpRoot()); err != nil {
+		return err
+	}
+	report.Notes = append(report.Notes, "removed Python caches, build/, dist/, and .op/")
+	return nil
+}
+
+type dartRunner struct{}
+
+func (dartRunner) check(manifest *LoadedManifest, _ BuildContext) error {
+	if err := requireRunnerCommands("dart"); err != nil {
+		return err
+	}
+	if !fileExists(filepath.Join(manifest.Dir, "pubspec.yaml")) {
+		return fmt.Errorf("dart runner requires pubspec.yaml")
+	}
+	_, err := dartEntrypoint(manifest)
+	return err
+}
+
+func (dartRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if err := ensureHostBuildTarget(RunnerDart, ctx); err != nil {
+		return err
+	}
+
+	entrypoint, err := dartEntrypoint(manifest)
+	if err != nil {
+		return err
+	}
+	outputPath := manifest.ArtifactPath(ctx)
+	if strings.TrimSpace(outputPath) == "" {
+		return fmt.Errorf("dart runner requires an artifact output path")
+	}
+
+	commands := [][]string{
+		{"dart", "pub", "get"},
+		{"dart", "compile", "exe", filepath.FromSlash(entrypoint), "-o", outputPath},
+	}
+	for _, args := range commands {
+		report.Commands = append(report.Commands, commandString(args))
+		ctx.Progress.Step(commandString(args))
+	}
+	if ctx.DryRun {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		return err
+	}
+	for _, args := range commands {
+		if output, err := runCommand(manifest.Dir, args); err != nil {
+			return fmt.Errorf("%s\n%s", err, output)
+		}
+	}
+	report.Notes = append(report.Notes, "dart build complete")
+	return nil
+}
+
+func (dartRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if err := ensureHostBuildTarget(RunnerDart, ctx); err != nil {
+		return err
+	}
+
+	args := []string{"dart", "test"}
+	report.Commands = append(report.Commands, commandString(args))
+	ctx.Progress.Step(commandString(args))
+	if output, err := runCommand(manifest.Dir, args); err != nil {
+		return fmt.Errorf("%s\n%s", err, output)
+	}
+	report.Notes = append(report.Notes, "dart test passed")
+	return nil
+}
+
+func (dartRunner) clean(manifest *LoadedManifest, report *Report) error {
+	if err := removeSelectedPaths(manifest.Dir, "build", ".dart_tool"); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(manifest.OpRoot()); err != nil {
+		return err
+	}
+	report.Notes = append(report.Notes, "removed build/, .dart_tool/, and .op/")
+	return nil
+}
+
+type rubyRunner struct{}
+
+func (rubyRunner) check(manifest *LoadedManifest, _ BuildContext) error {
+	if err := requireRunnerCommands("ruby", "bundle"); err != nil {
+		return err
+	}
+	if !fileExists(filepath.Join(manifest.Dir, "Gemfile")) {
+		return fmt.Errorf("ruby runner requires Gemfile")
+	}
+	return nil
+}
+
+func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if err := ensureHostBuildTarget(RunnerRuby, ctx); err != nil {
+		return err
+	}
+
+	args := []string{"bundle", "install"}
+	report.Commands = append(report.Commands, commandString(args))
+	ctx.Progress.Step(commandString(args))
+	if ctx.DryRun {
+		return nil
+	}
+	if output, err := runCommand(manifest.Dir, args); err != nil {
+		return fmt.Errorf("%s\n%s", err, output)
+	}
+	report.Notes = append(report.Notes, "bundle install complete")
+	return nil
+}
+
+func (rubyRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if err := ensureHostBuildTarget(RunnerRuby, ctx); err != nil {
+		return err
+	}
+
+	args, err := rubyTestArgs(manifest)
+	if err != nil {
+		return err
+	}
+	report.Commands = append(report.Commands, commandString(args))
+	ctx.Progress.Step(commandString(args))
+	if output, err := runCommand(manifest.Dir, args); err != nil {
+		return fmt.Errorf("%s\n%s", err, output)
+	}
+	report.Notes = append(report.Notes, "ruby tests passed")
+	return nil
+}
+
+func (rubyRunner) clean(manifest *LoadedManifest, report *Report) error {
+	if err := removeSelectedPaths(manifest.Dir, "log", "tmp", filepath.Join("vendor", "bundle")); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(manifest.OpRoot()); err != nil {
+		return err
+	}
+	report.Notes = append(report.Notes, "removed log/, tmp/, vendor/bundle/, and .op/")
+	return nil
 }
 
 type swiftPackageRunner struct{}
