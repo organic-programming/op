@@ -239,6 +239,15 @@ func rubyTestArgs(manifest *LoadedManifest) ([]string, error) {
 	return nil, fmt.Errorf("ruby runner requires spec/ or Rakefile")
 }
 
+func rubyEntrypoint(manifest *LoadedManifest) (string, error) {
+	for _, rel := range []string{"bin/main.rb", "main.rb", "app/main.rb"} {
+		if fileExists(filepath.Join(manifest.Dir, filepath.FromSlash(rel))) {
+			return rel, nil
+		}
+	}
+	return "", fmt.Errorf("ruby runner requires bin/main.rb, main.rb, or app/main.rb")
+}
+
 func removeSelectedPaths(root string, relPaths ...string) error {
 	for _, relPath := range relPaths {
 		if err := os.RemoveAll(filepath.Join(root, relPath)); err != nil {
@@ -536,6 +545,22 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 	}
 	if output, err := runCommand(manifest.Dir, args); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
+	}
+	if manifestHasPrimaryArtifact(manifest) {
+		report.Notes = append(report.Notes, "bundle install complete")
+		return nil
+	}
+
+	entrypoint, err := rubyEntrypoint(manifest)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(manifest.BinaryPath()), 0o755); err != nil {
+		return err
+	}
+	wrapper := fmt.Sprintf("#!/bin/sh\nset -eu\ncd %q\nexec bundle exec ruby %q \"$@\"\n", manifest.Dir, filepath.Join(manifest.Dir, filepath.FromSlash(entrypoint)))
+	if err := os.WriteFile(manifest.BinaryPath(), []byte(wrapper), 0o755); err != nil {
+		return err
 	}
 	report.Notes = append(report.Notes, "bundle install complete")
 	return nil

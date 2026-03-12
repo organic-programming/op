@@ -58,6 +58,7 @@ type Manifest struct {
 
 	// Operational fields — used by lifecycle.
 	Kind      string        `yaml:"kind"`
+	Transport string        `yaml:"transport,omitempty"`
 	Platforms []string      `yaml:"platforms,omitempty"`
 	Build     BuildConfig   `yaml:"build"`
 	Requires  Requires      `yaml:"requires,omitempty"`

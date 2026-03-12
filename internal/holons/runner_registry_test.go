@@ -211,6 +211,50 @@ func TestRubyRunnerDryRunBuild(t *testing.T) {
 	}
 }
 
+func TestRubyRunnerBuildCreatesNativeLauncher(t *testing.T) {
+	root := t.TempDir()
+	toolDir := t.TempDir()
+	t.Setenv("PATH", toolDir)
+	writeFakeCommand(t, toolDir, "ruby")
+	writeFakeCommand(t, toolDir, "bundle")
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("source 'https://example.test'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bin", "main.rb"), []byte("puts 'ok'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRunnerManifest(t, root, "schema: holon/v0\nkind: native\nbuild:\n  runner: ruby\nartifacts:\n  binary: ruby-demo\n")
+
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+
+	var report Report
+	err = (rubyRunner{}).build(manifest, BuildContext{
+		Target:   canonicalRuntimeTarget(),
+		Mode:     buildModeDebug,
+		Progress: progress.Silence(),
+	}, &report)
+	if err != nil {
+		t.Fatalf("ruby build failed: %v", err)
+	}
+
+	launcher, err := os.ReadFile(manifest.BinaryPath())
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", manifest.BinaryPath(), err)
+	}
+	if !strings.Contains(string(launcher), "bundle exec ruby") {
+		t.Fatalf("launcher missing bundle exec ruby: %s", launcher)
+	}
+	if !strings.Contains(string(launcher), filepath.Join(root, "bin", "main.rb")) {
+		t.Fatalf("launcher missing entrypoint path: %s", launcher)
+	}
+}
+
 func TestSwiftPackageRunnerDryRunBuild(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "Package.swift"), []byte("// swift-tools-version: 6.0\n"), 0o644); err != nil {
@@ -600,6 +644,30 @@ func TestRubyTestArgsFallBackToRakeTest(t *testing.T) {
 	}
 	if strings.Join(got, " ") != "bundle exec rake test" {
 		t.Fatalf("rubyTestArgs() = %q", strings.Join(got, " "))
+	}
+}
+
+func TestRubyEntrypointPrefersBinMain(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bin", "main.rb"), []byte("puts 'ok'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRunnerManifest(t, root, "schema: holon/v0\nkind: native\nbuild:\n  runner: ruby\nartifacts:\n  binary: ruby-demo\n")
+
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+
+	got, err := rubyEntrypoint(manifest)
+	if err != nil {
+		t.Fatalf("rubyEntrypoint() failed: %v", err)
+	}
+	if got != "bin/main.rb" {
+		t.Fatalf("rubyEntrypoint() = %q, want %q", got, "bin/main.rb")
 	}
 }
 
