@@ -1,5 +1,6 @@
 # Binary
 /op
+/.op/
 /dist/
 
 # Generated protobuf/gRPC stubs (derived from .proto)
