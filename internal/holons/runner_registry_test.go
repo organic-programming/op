@@ -340,6 +340,89 @@ func TestDotnetRunnerDryRunBuild(t *testing.T) {
 	}
 }
 
+func TestSyncDotnetArtifactsCopiesCompanionFiles(t *testing.T) {
+	root := t.TempDir()
+	writeRunnerManifest(t, root, "schema: holon/v0\nkind: native\nbuild:\n  runner: dotnet\nartifacts:\n  binary: dotnet-demo\n")
+
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+
+	outputDir := filepath.Join(root, ".op", "build", "dotnet")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, contents := range map[string]string{
+		"dotnet-demo":                    "apphost",
+		"dotnet-demo.dll":                "assembly",
+		"dotnet-demo.runtimeconfig.json": "{}",
+		"dotnet-demo.deps.json":          "{}",
+		"Holons.dll":                     "shared",
+	} {
+		if err := os.WriteFile(filepath.Join(outputDir, name), []byte(contents), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := syncDotnetArtifacts(manifest, outputDir); err != nil {
+		t.Fatalf("syncDotnetArtifacts() failed: %v", err)
+	}
+
+	binDir := filepath.Dir(manifest.BinaryPath())
+	for _, name := range []string{
+		"dotnet-demo",
+		"dotnet-demo.dll",
+		"dotnet-demo.runtimeconfig.json",
+		"dotnet-demo.deps.json",
+		"Holons.dll",
+	} {
+		if !fileExists(filepath.Join(binDir, name)) {
+			t.Fatalf("expected %s in build bin dir", name)
+		}
+	}
+}
+
+func TestSyncDotnetArtifactsCreatesLauncherWhenOnlyDLLExists(t *testing.T) {
+	root := t.TempDir()
+	writeRunnerManifest(t, root, "schema: holon/v0\nkind: native\nbuild:\n  runner: dotnet\nartifacts:\n  binary: dotnet-demo\n")
+
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+
+	outputDir := filepath.Join(root, ".op", "build", "dotnet")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, contents := range map[string]string{
+		"dotnet-demo.dll":                "assembly",
+		"dotnet-demo.runtimeconfig.json": "{}",
+		"dotnet-demo.deps.json":          "{}",
+	} {
+		if err := os.WriteFile(filepath.Join(outputDir, name), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := syncDotnetArtifacts(manifest, outputDir); err != nil {
+		t.Fatalf("syncDotnetArtifacts() failed: %v", err)
+	}
+
+	launcher := manifest.BinaryPath()
+	if !fileExists(launcher) {
+		t.Fatalf("expected launcher at %s", launcher)
+	}
+	contents, err := os.ReadFile(launcher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contents), `exec dotnet "$SCRIPT_DIR/dotnet-demo.dll" "$@"`) {
+		t.Fatalf("launcher contents missing dotnet invocation: %s", contents)
+	}
+}
+
 func TestDotnetProjectFileAndWorkloadDetection(t *testing.T) {
 	root := t.TempDir()
 	projectFile := filepath.Join(root, "demo.csproj")

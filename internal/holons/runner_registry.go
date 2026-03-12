@@ -94,6 +94,59 @@ func syncBinaryFromCandidates(manifest *LoadedManifest, candidates []string) err
 	return fmt.Errorf("build did not produce %s (searched: %s)", manifest.BinaryName(), strings.Join(trimmed, ", "))
 }
 
+func syncDotnetArtifacts(manifest *LoadedManifest, outputDir string) error {
+	if manifest == nil || manifestHasPrimaryArtifact(manifest) {
+		return nil
+	}
+	if strings.TrimSpace(outputDir) == "" {
+		return fmt.Errorf("build did not produce %s", manifest.BinaryName())
+	}
+
+	binDir := filepath.Dir(manifest.BinaryPath())
+	if err := os.RemoveAll(binDir); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		src := filepath.Join(outputDir, entry.Name())
+		dst := filepath.Join(binDir, entry.Name())
+		if err := copyArtifact(src, dst); err != nil {
+			return err
+		}
+	}
+
+	if _, err := os.Stat(manifest.BinaryPath()); err != nil {
+		dllPath := filepath.Join(binDir, manifest.BinaryName()+".dll")
+		if fileExists(dllPath) && runtime.GOOS != "windows" {
+			if err := writeDotnetLauncher(manifest.BinaryPath(), manifest.BinaryName()+".dll"); err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("build did not produce %s in %s", manifest.BinaryName(), workspaceRelativePath(outputDir))
+		}
+	}
+	return nil
+}
+
+func writeDotnetLauncher(path string, dllName string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	script := fmt.Sprintf(`#!/bin/sh
+set -eu
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+exec dotnet "$SCRIPT_DIR/%s" "$@"
+`, dllName)
+	return os.WriteFile(path, []byte(script), 0o755)
+}
+
 func hasCMakeProject(manifest *LoadedManifest) bool {
 	if manifest == nil {
 		return false
@@ -901,10 +954,7 @@ func (dotnetRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 	if output, err := runCommand(manifest.Dir, args); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
-	if err := syncBinaryFromCandidates(manifest, []string{
-		filepath.Join(outputDir, hostExecutableName(manifest.BinaryName())),
-		filepath.Join(outputDir, manifest.BinaryName()+".dll"),
-	}); err != nil {
+	if err := syncDotnetArtifacts(manifest, outputDir); err != nil {
 		return err
 	}
 	report.Notes = append(report.Notes, "dotnet build complete")
