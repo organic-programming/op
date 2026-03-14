@@ -82,9 +82,11 @@ func Run(args []string, version string) int {
 	case "new", "list", "show":
 		return cmdWho(format, quiet, cmd, rest)
 
-	// --- URI dispatch: grpc://, grpc+stdio://, grpc+unix://, grpc+ws:// ---
+	// --- URI dispatch: grpc://, grpc+tcp://, grpc+mem://, grpc+stdio://, grpc+unix://, grpc+ws:// ---
 	default:
 		if strings.HasPrefix(cmd, "grpc://") ||
+			strings.HasPrefix(cmd, "grpc+tcp://") ||
+			strings.HasPrefix(cmd, "grpc+mem://") ||
 			strings.HasPrefix(cmd, "grpc+stdio://") ||
 			strings.HasPrefix(cmd, "grpc+unix://") ||
 			strings.HasPrefix(cmd, "grpc+ws://") ||
@@ -108,6 +110,8 @@ Holon dispatch (transport chain):
 
 Direct gRPC URI dispatch:
   op grpc://<host:port> <method>         gRPC over TCP (existing server)
+  op grpc+tcp://<host:port> <method>     gRPC over TCP (explicit alias for grpc://)
+  op grpc+mem://<holon> <method>         gRPC over in-memory pipe (internal composition)
   op grpc+stdio://<holon> <method>       gRPC over stdio pipe (ephemeral)
   op grpc+unix://<path> <method>         gRPC over Unix socket
   op grpc+ws://<host:port> <method>      gRPC over WebSocket
@@ -462,6 +466,8 @@ func cmdRun(format Format, globalQuiet bool, args []string) int {
 //   - grpc://host:port <method>       → TCP to existing server
 //   - grpc://host:port                → list available methods
 //   - grpc://holon <method>           → ephemeral TCP: start binary, call, stop
+//   - grpc+tcp://host:port <method>   → explicit alias for grpc://
+//   - grpc+mem://holon <method>       → in-memory composition dispatch
 //   - grpc+stdio://holon <method>     → stdio pipe: launch, pipe, call, done
 //   - grpc+unix://path <method>       → Unix domain socket connection
 func cmdGRPC(format Format, uri string, args []string) int {
@@ -472,6 +478,11 @@ func cmdGRPC(format Format, uri string, args []string) int {
 		return cmdGRPCDirect(format, "unix://"+strings.TrimPrefix(uri, "grpc+unix://"), args)
 	case strings.HasPrefix(uri, "grpc+ws://") || strings.HasPrefix(uri, "grpc+wss://"):
 		return cmdGRPCWebSocket(format, uri, args)
+	case strings.HasPrefix(uri, "grpc+mem://"):
+		holonName := strings.TrimPrefix(uri, "grpc+mem://")
+		return cmdGRPCMem(format, holonName, args)
+	case strings.HasPrefix(uri, "grpc+tcp://"):
+		return cmdGRPCTCP(format, strings.Replace(uri, "grpc+tcp://", "grpc://", 1), args)
 	default:
 		return cmdGRPCTCP(format, uri, args)
 	}
