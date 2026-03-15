@@ -16,9 +16,8 @@ import (
 	"strings"
 	"syscall"
 	"text/tabwriter"
-	"time"
 
-	"github.com/organic-programming/go-holons/pkg/transport"
+	sdkconnect "github.com/organic-programming/go-holons/pkg/connect"
 	"github.com/organic-programming/grace-op/internal/grpcclient"
 	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/server"
@@ -106,13 +105,13 @@ Global flags (must come before <holon> or URI):
   -q, --quiet                           suppress progress and suggestions
 
 Holon dispatch (transport chain):
-  op <holon> <command> [args]            dispatch via mem://, stdio://, or tcp://
+  op <holon> <command> [args]            dispatch via the SDK auto-connect chain
 
 Direct gRPC URI dispatch:
-  op grpc://<host:port> <method>         gRPC over TCP (existing server)
-  op grpc+tcp://<host:port> <method>     gRPC over TCP (explicit alias for grpc://)
-  op grpc+mem://<holon> <method>         gRPC over in-memory pipe (internal composition)
-  op grpc+stdio://<holon> <method>       gRPC over stdio pipe (ephemeral)
+  op grpc://<slug|host:port> <method>    gRPC auto-connect for slugs, direct TCP for host:port
+  op grpc+tcp://<slug|host:port> <method> force gRPC over TCP
+  op grpc+mem://<holon> <method>         force gRPC over in-memory pipe (in-process only)
+  op grpc+stdio://<holon> <method>       force gRPC over stdio pipe (ephemeral)
   op grpc+unix://<path> <method>         gRPC over Unix socket
   op grpc+ws://<host:port> <method>      gRPC over WebSocket
   op grpc+wss://<host:port> <method>     gRPC over secure WebSocket
@@ -465,10 +464,11 @@ func cmdRun(format Format, globalQuiet bool, args []string) int {
 // Transport schemes:
 //   - grpc://host:port <method>       → TCP to existing server
 //   - grpc://host:port                → list available methods
-//   - grpc://holon <method>           → ephemeral TCP: start binary, call, stop
-//   - grpc+tcp://host:port <method>   → explicit alias for grpc://
-//   - grpc+mem://holon <method>       → in-memory composition dispatch
-//   - grpc+stdio://holon <method>     → stdio pipe: launch, pipe, call, done
+//   - grpc://holon <method>           → auto-connect chain for slug targets
+//   - grpc+tcp://host:port <method>   → TCP to existing server
+//   - grpc+tcp://holon <method>       → forced TCP startup for slug targets
+//   - grpc+mem://holon <method>       → in-memory composition dispatch (in-process only)
+//   - grpc+stdio://holon <method>     → forced stdio pipe
 //   - grpc+unix://path <method>       → Unix domain socket connection
 func cmdGRPC(format Format, uri string, args []string) int {
 	switch {
@@ -482,116 +482,30 @@ func cmdGRPC(format Format, uri string, args []string) int {
 		holonName := strings.TrimPrefix(uri, "grpc+mem://")
 		return cmdGRPCMem(format, holonName, args)
 	case strings.HasPrefix(uri, "grpc+tcp://"):
-		return cmdGRPCTCP(format, strings.Replace(uri, "grpc+tcp://", "grpc://", 1), args)
+		target := strings.TrimPrefix(uri, "grpc+tcp://")
+		if isHostPortTarget(target) {
+			return cmdGRPCDirect(format, target, args)
+		}
+		return cmdGRPCConnected(format, uri, target, args, sdkconnect.TransportTCP)
 	default:
 		return cmdGRPCTCP(format, uri, args)
 	}
 }
 
-// cmdGRPCTCP handles grpc://host:port and grpc://holon (ephemeral TCP).
+// cmdGRPCTCP handles grpc://host:port directly and grpc://holon via auto-connect.
 func cmdGRPCTCP(format Format, uri string, args []string) int {
-	address := strings.TrimPrefix(uri, "grpc://")
-
-	_, _, err := net.SplitHostPort(address)
-	isHostPort := err == nil
-
-	if isHostPort {
-		return cmdGRPCDirect(format, address, args)
+	target := strings.TrimPrefix(uri, "grpc://")
+	if isHostPortTarget(target) {
+		return cmdGRPCDirect(format, target, args)
 	}
-
-	// Ephemeral TCP mode: address is a holon name
-	holonName := address
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "op grpc: method required for ephemeral mode")
-		fmt.Fprintf(os.Stderr, "usage: op grpc://%s <method>\n", holonName)
-		return 1
-	}
-
-	scheme, err := selectTransport(holonName)
-	if err == nil {
-		switch scheme {
-		case "mem":
-			return cmdGRPCMem(format, holonName, args)
-		case "stdio":
-			return cmdGRPCStdio(format, "grpc+stdio://"+holonName, args)
-		}
-	}
-
-	binary, err := resolveHolon(holonName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op grpc: holon %q not found\n", holonName)
-		return 1
-	}
-
-	// Pick an ephemeral port via SDK transport
-	lis, err := transport.Listen("tcp://:0")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op grpc: cannot allocate port: %v\n", err)
-		return 1
-	}
-	port := fmt.Sprintf("%d", lis.Addr().(*net.TCPAddr).Port)
-	lis.Close()
-
-	cmd := exec.Command(binary, "serve", "--listen", "tcp://:"+port)
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "op grpc: cannot start %s: %v\n", holonName, err)
-		return 1
-	}
-	defer func() {
-		cmd.Process.Kill() //nolint:errcheck
-		cmd.Wait()         //nolint:errcheck
-	}()
-
-	target := fmt.Sprintf("localhost:%s", port)
-	ready := false
-	for i := 0; i < 50; i++ {
-		conn, err := net.DialTimeout("tcp", target, 100*time.Millisecond)
-		if err == nil {
-			conn.Close()
-			ready = true
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	if !ready {
-		fmt.Fprintf(os.Stderr, "op grpc: %s did not start within 5s on port %s\n", holonName, port)
-		return 1
-	}
-
-	return cmdGRPCDirect(format, target, args)
+	return cmdGRPCConnected(format, uri, target, args, sdkconnect.TransportAuto)
 }
 
 // cmdGRPCStdio handles grpc+stdio://holon — launches the holon with
 // serve --listen stdio:// and communicates via stdin/stdout pipes.
 func cmdGRPCStdio(format Format, uri string, args []string) int {
 	holonName := strings.TrimPrefix(uri, "grpc+stdio://")
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "op grpc: method required")
-		fmt.Fprintf(os.Stderr, "usage: op grpc+stdio://%s <method>\n", holonName)
-		return 1
-	}
-
-	binary, err := resolveHolon(holonName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op grpc: holon %q not found\n", holonName)
-		return 1
-	}
-
-	method := args[0]
-	inputJSON := []byte("{}")
-	if len(args) > 1 {
-		inputJSON = []byte(args[1])
-	}
-
-	result, err := callViaStdio(binary, method, inputJSON)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
-		return 1
-	}
-
-	fmt.Println(formatRPCOutput(format, method, result))
-	return 0
+	return cmdGRPCConnected(format, uri, holonName, args, sdkconnect.TransportStdio)
 }
 
 // cmdGRPCWebSocket handles grpc+ws://host:port[/path] and grpc+wss://...
@@ -677,38 +591,12 @@ func cmdHolon(format Format, holon string, args []string) int {
 		fmt.Fprintf(os.Stderr, "op: %v\n", err)
 		return 1
 	}
+	return runConnectedRPC(format, "op", holon, method, inputJSON, oneShotConnectOptions(sdkconnect.TransportAuto))
+}
 
-	scheme, err := selectTransport(holon)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op: %v\n", err)
-		return 1
-	}
-
-	switch scheme {
-	case "mem":
-		output, err := callViaMem(holon, method, inputJSON)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "op: %v\n", err)
-			return 1
-		}
-		fmt.Println(formatRPCOutput(format, method, []byte(output)))
-		return 0
-	case "stdio":
-		binary, err := resolveHolon(holon)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "op: unknown holon %q\n", holon)
-			return 1
-		}
-		output, err := callViaStdio(binary, method, []byte(inputJSON))
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "op: %v\n", err)
-			return 1
-		}
-		fmt.Println(formatRPCOutput(format, method, output))
-		return 0
-	default:
-		return cmdGRPCTCP(format, "grpc://"+holon, []string{method, inputJSON})
-	}
+func isHostPortTarget(target string) bool {
+	_, _, err := net.SplitHostPort(strings.TrimSpace(target))
+	return err == nil
 }
 
 func mapHolonCommandToRPC(args []string) (method string, inputJSON string, err error) {

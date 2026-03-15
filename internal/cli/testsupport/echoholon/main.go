@@ -14,6 +14,7 @@ import (
 	"github.com/organic-programming/go-holons/pkg/transport"
 	echov1 "github.com/organic-programming/grace-op/internal/cli/testsupport/echoholon/protos/echo/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 const defaultListenURI = "tcp://127.0.0.1:0"
@@ -55,6 +56,7 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 	echov1.RegisterEchoServiceServer(grpcServer, server{})
+	reflection.Register(grpcServer)
 
 	serveErrCh := make(chan error, 1)
 	go func() {

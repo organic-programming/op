@@ -1,159 +1,61 @@
 package cli
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"os"
 	"strings"
 	"sync"
-	"time"
 
+	sdkconnect "github.com/organic-programming/go-holons/pkg/connect"
 	holonsgrpcclient "github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/transport"
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 	"github.com/organic-programming/grace-op/internal/server"
 
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
+	grpcreflection "google.golang.org/grpc/reflection"
 )
 
-type memHolonComposer struct {
-	register func(*grpc.Server)
-	callRPC  func(context.Context, *grpc.ClientConn, string, string) (string, error)
+var (
+	graceOPMemOnce     sync.Once
+	graceOPMemListener *transport.MemListener
+)
 
-	once     sync.Once
-	listener *transport.MemListener
-}
-
-var sophiaMemComposer = &memHolonComposer{
-	register: registerSophiaWhoService,
-	callRPC:  callSophiaWhoRPC,
-}
-
-// memComposeRegistry maps supported third-party holon names to their in-process composer.
-var memComposeRegistry = map[string]*memHolonComposer{}
-
-func registerSophiaWhoService(s *grpc.Server) {
-	opv1.RegisterOPServiceServer(s, &server.Server{})
-}
-
-func dialMemHolon(ctx context.Context, holonName string) (*grpc.ClientConn, error) {
-	composer, err := resolveMemComposer(holonName)
-	if err != nil {
-		return nil, err
+func init() {
+	dialer := func(ctx context.Context) (*grpc.ClientConn, error) {
+		return holonsgrpcclient.DialMem(ctx, ensureGraceOPMemListener())
 	}
 
-	composer.once.Do(func() {
-		composer.listener = transport.NewMemListener()
-		s := grpc.NewServer()
-		composer.register(s)
+	sdkconnect.RegisterMemTarget("grace-op", dialer)
+	sdkconnect.RegisterMemTarget("op", dialer)
+}
+
+func ensureGraceOPMemListener() *transport.MemListener {
+	graceOPMemOnce.Do(func() {
+		graceOPMemListener = transport.NewMemListener()
+
+		grpcServer := grpc.NewServer()
+		opv1.RegisterOPServiceServer(grpcServer, &server.Server{})
+		grpcreflection.Register(grpcServer)
+
 		go func() {
-			_ = s.Serve(composer.listener)
+			_ = grpcServer.Serve(graceOPMemListener)
 		}()
 	})
 
-	conn, err := holonsgrpcclient.DialMem(ctx, composer.listener)
-	if err != nil {
-		return nil, fmt.Errorf("dial mem composition for %q: %w", holonName, err)
-	}
-	return conn, nil
-}
-
-func resolveMemComposer(holonName string) (*memHolonComposer, error) {
-	key := strings.ToLower(strings.TrimSpace(holonName))
-	composer, ok := memComposeRegistry[key]
-	if !ok {
-		return nil, fmt.Errorf("mem composition not available for holon %q", holonName)
-	}
-	return composer, nil
+	return graceOPMemListener
 }
 
 func hasMemComposer(holonName string) bool {
-	_, err := resolveMemComposer(holonName)
-	return err == nil
+	switch strings.ToLower(strings.TrimSpace(holonName)) {
+	case "grace-op", "op":
+		return true
+	default:
+		return false
+	}
 }
 
 func cmdGRPCMem(format Format, holonName string, args []string) int {
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "op grpc: method required")
-		fmt.Fprintf(os.Stderr, "usage: op grpc://%s <method>\n", holonName)
-		return 1
-	}
-
-	method := args[0]
-	inputJSON := "{}"
-	if len(args) > 1 {
-		inputJSON = args[1]
-	}
-
-	output, err := callViaMem(holonName, method, inputJSON)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
-		return 1
-	}
-
-	fmt.Println(formatRPCOutput(format, method, []byte(output)))
-	return 0
-}
-
-func callViaMem(holonName, methodName, inputJSON string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	conn, err := dialMemHolon(ctx, holonName)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-
-	composer, err := resolveMemComposer(holonName)
-	if err != nil {
-		return "", err
-	}
-	return composer.callRPC(ctx, conn, methodName, inputJSON)
-}
-
-func callSophiaWhoRPC(ctx context.Context, conn *grpc.ClientConn, methodName, inputJSON string) (string, error) {
-	method := canonicalMethodName(methodName)
-	client := opv1.NewOPServiceClient(conn)
-
-	switch method {
-	case "CreateIdentity":
-		req := &opv1.CreateIdentityRequest{}
-		if err := unmarshalProtoJSON(inputJSON, req); err != nil {
-			return "", fmt.Errorf("parse input JSON: %w", err)
-		}
-		resp, err := client.CreateIdentity(ctx, req)
-		if err != nil {
-			return "", err
-		}
-		return marshalProtoJSON(resp)
-	case "ShowIdentity":
-		req := &opv1.ShowIdentityRequest{}
-		if err := unmarshalProtoJSON(inputJSON, req); err != nil {
-			return "", fmt.Errorf("parse input JSON: %w", err)
-		}
-		resp, err := client.ShowIdentity(ctx, req)
-		if err != nil {
-			return "", err
-		}
-		return marshalProtoJSON(resp)
-	case "ListIdentities":
-		req := &opv1.ListIdentitiesRequest{}
-		if err := unmarshalProtoJSON(inputJSON, req); err != nil {
-			return "", fmt.Errorf("parse input JSON: %w", err)
-		}
-		resp, err := client.ListIdentities(ctx, req)
-		if err != nil {
-			return "", err
-		}
-		return marshalProtoJSON(resp)
-	default:
-		return "", fmt.Errorf("method %q not found via mem", methodName)
-	}
+	return cmdGRPCConnected(format, "grpc+mem://"+holonName, holonName, args, sdkconnect.TransportMem)
 }
 
 func canonicalMethodName(method string) string {
@@ -162,25 +64,4 @@ func canonicalMethodName(method string) string {
 		return trimmed[i+1:]
 	}
 	return trimmed
-}
-
-func unmarshalProtoJSON(input string, msg proto.Message) error {
-	trimmed := strings.TrimSpace(input)
-	if trimmed == "" {
-		trimmed = "{}"
-	}
-	return protojson.Unmarshal([]byte(trimmed), msg)
-}
-
-func marshalProtoJSON(msg proto.Message) (string, error) {
-	out, err := protojson.Marshal(msg)
-	if err != nil {
-		return "", err
-	}
-
-	var pretty bytes.Buffer
-	if err := json.Indent(&pretty, out, "", "  "); err != nil {
-		return string(out), nil
-	}
-	return pretty.String(), nil
 }

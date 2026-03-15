@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -96,7 +97,7 @@ func TestRunNativeShowCommand(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(output, "Dummy TestHolon") {
+	if !strings.Contains(output, "Sophia TestHolon") {
 		t.Fatalf("show output missing identity name: %q", output)
 	}
 	if !strings.Contains(output, "holon.yaml") {
@@ -1831,7 +1832,7 @@ func TestRunCommandUsesInstalledBinaryWithoutSource(t *testing.T) {
 	}
 }
 
-func TestGRPCURIWithoutPortRequiresMethodForEphemeralHolon(t *testing.T) {
+func TestGRPCURIWithoutPortRequiresMethodForSlugTarget(t *testing.T) {
 	stderr := captureStderr(t, func() {
 		code := Run([]string{"grpc://rob-go"}, "0.1.0-test")
 		if code != 1 {
@@ -1839,8 +1840,97 @@ func TestGRPCURIWithoutPortRequiresMethodForEphemeralHolon(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "method required for ephemeral mode") {
-		t.Fatalf("stderr missing ephemeral-mode method error: %q", stderr)
+	if !strings.Contains(stderr, "method required") {
+		t.Fatalf("stderr missing method-required error: %q", stderr)
+	}
+}
+
+func TestHolonSlugDispatchUsesAutoConnectChain(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout := captureStdout(t, func() {
+		code := Run([]string{"echo-server", "Ping", `{"message":"Alice"}`}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("echo-server Ping returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, `"message": "Alice"`) {
+		t.Fatalf("stdout missing echoed payload: %q", stdout)
+	}
+}
+
+func TestGRPCSlugDispatchUsesAutoConnectChain(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout := captureStdout(t, func() {
+		code := Run([]string{"grpc://echo-server", "Ping", `{"message":"Alice"}`}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("grpc://echo-server returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, `"message": "Alice"`) {
+		t.Fatalf("stdout missing echoed payload: %q", stdout)
+	}
+}
+
+func TestGRPCTCPSlugDispatchForcesTCP(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout := captureStdout(t, func() {
+		code := Run([]string{"grpc+tcp://echo-server", "Ping", `{"message":"Alice"}`}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("grpc+tcp://echo-server returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, `"message": "Alice"`) {
+		t.Fatalf("stdout missing echoed payload: %q", stdout)
+	}
+
+	portFile := filepath.Join(root, ".op", "run", "echo-server.port")
+	if _, err := os.Stat(portFile); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("forced TCP dispatch should not leave a port file, got err=%v", err)
+	}
+}
+
+func TestGRPCMemSlugDispatchFailsForExternalHolon(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stderr := captureStderr(t, func() {
+		code := Run([]string{"grpc+mem://echo-server", "Ping", `{"message":"Alice"}`}, "0.1.0-test")
+		if code != 1 {
+			t.Fatalf("grpc+mem://echo-server returned %d, want 1", code)
+		}
+	})
+
+	if !strings.Contains(stderr, `mem transport not registered`) {
+		t.Fatalf("stderr missing mem-registration failure: %q", stderr)
+	}
+}
+
+func TestGRPCMemSlugDispatchSucceedsForGraceOP(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+
+	stdout := captureStdout(t, func() {
+		code := Run([]string{"grpc+mem://grace-op", "ListIdentities", "{}"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("grpc+mem://grace-op returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "No identities found.") {
+		t.Fatalf("stdout should confirm the in-process grace-op call succeeded, got %q", stdout)
 	}
 }
 

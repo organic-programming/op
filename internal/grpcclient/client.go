@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -50,14 +51,22 @@ func Dial(address, methodName string, inputJSON string) (*CallResult, error) {
 	}
 	defer conn.Close()
 
-	// Use reflection to discover services
+	return InvokeConn(ctx, conn, methodName, inputJSON)
+}
+
+// InvokeConn calls a reflected unary RPC over an existing gRPC connection.
+func InvokeConn(ctx context.Context, conn *grpc.ClientConn, methodName string, inputJSON string) (*CallResult, error) {
+	if conn == nil {
+		return nil, errors.New("gRPC connection is required")
+	}
+
+	targetMethod := canonicalMethodName(methodName)
 	refClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
 	stream, err := refClient.ServerReflectionInfo(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("reflection not available at %s: %w", address, err)
+		return nil, fmt.Errorf("reflection not available: %w", err)
 	}
 
-	// List services
 	if err := stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
 		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_ListServices{
 			ListServices: "",
@@ -73,12 +82,10 @@ func Dial(address, methodName string, inputJSON string) (*CallResult, error) {
 
 	listResult := listResp.GetListServicesResponse()
 	if listResult == nil {
-		return nil, fmt.Errorf("no services found at %s", address)
+		return nil, fmt.Errorf("no services found")
 	}
 
-	// Find the matching method across all services
 	for _, svc := range listResult.Service {
-		// Skip reflection service itself
 		if svc.Name == "grpc.reflection.v1alpha.ServerReflection" ||
 			svc.Name == "grpc.reflection.v1.ServerReflection" {
 			continue
@@ -92,13 +99,12 @@ func Dial(address, methodName string, inputJSON string) (*CallResult, error) {
 		methods := desc.Methods()
 		for i := 0; i < methods.Len(); i++ {
 			method := methods.Get(i)
-			if string(method.Name()) == methodName {
+			if string(method.Name()) == targetMethod {
 				return callMethod(ctx, conn, desc, method, inputJSON)
 			}
 		}
 	}
 
-	// Method not found — list available methods for the error message
 	var available []string
 	for _, svc := range listResult.Service {
 		if svc.Name == "grpc.reflection.v1alpha.ServerReflection" ||
@@ -463,50 +469,7 @@ func DialStdio(binaryPath, methodName, inputJSON string) (*CallResult, error) {
 	}
 	defer conn.Close()
 
-	// Use reflection to discover and call the method
-	refClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
-	stream, err := refClient.ServerReflectionInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("reflection over stdio: %w", err)
-	}
-
-	if err := stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
-		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_ListServices{
-			ListServices: "",
-		},
-	}); err != nil {
-		return nil, fmt.Errorf("list services: %w", err)
-	}
-
-	listResp, err := stream.Recv()
-	if err != nil {
-		return nil, fmt.Errorf("list services response: %w", err)
-	}
-
-	listResult := listResp.GetListServicesResponse()
-	if listResult == nil {
-		return nil, fmt.Errorf("no services found via stdio")
-	}
-
-	for _, svc := range listResult.Service {
-		if svc.Name == "grpc.reflection.v1alpha.ServerReflection" ||
-			svc.Name == "grpc.reflection.v1.ServerReflection" {
-			continue
-		}
-		desc, err := resolveService(stream, svc.Name)
-		if err != nil {
-			continue
-		}
-		methods := desc.Methods()
-		for i := 0; i < methods.Len(); i++ {
-			method := methods.Get(i)
-			if string(method.Name()) == methodName {
-				return callMethod(ctx, conn, desc, method, inputJSON)
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("method %q not found via stdio", methodName)
+	return InvokeConn(ctx, conn, methodName, inputJSON)
 }
 
 // pipeConn wraps an io.ReadCloser + io.WriteCloser as a net.Conn.
@@ -572,61 +535,13 @@ func DialWebSocket(wsURI, methodName, inputJSON string) (*CallResult, error) {
 	}
 	defer conn.Close()
 
-	// Use reflection to discover and call the method
-	refClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
-	stream, err := refClient.ServerReflectionInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("reflection over ws: %w", err)
-	}
+	return InvokeConn(ctx, conn, methodName, inputJSON)
+}
 
-	if err := stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
-		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_ListServices{
-			ListServices: "",
-		},
-	}); err != nil {
-		return nil, fmt.Errorf("list services: %w", err)
+func canonicalMethodName(method string) string {
+	trimmed := strings.TrimSpace(method)
+	if i := strings.LastIndex(trimmed, "/"); i >= 0 && i+1 < len(trimmed) {
+		return trimmed[i+1:]
 	}
-
-	listResp, err := stream.Recv()
-	if err != nil {
-		return nil, fmt.Errorf("list services response: %w", err)
-	}
-
-	listResult := listResp.GetListServicesResponse()
-	if listResult == nil {
-		return nil, fmt.Errorf("no services found via ws")
-	}
-
-	var available []string
-	var resolveErrors []string
-	for _, svc := range listResult.Service {
-		if svc.Name == "grpc.reflection.v1alpha.ServerReflection" ||
-			svc.Name == "grpc.reflection.v1.ServerReflection" {
-			continue
-		}
-		desc, err := resolveService(stream, svc.Name)
-		if err != nil {
-			resolveErrors = append(resolveErrors, fmt.Sprintf("%s: %v", svc.Name, err))
-			continue
-		}
-		methods := desc.Methods()
-		for i := 0; i < methods.Len(); i++ {
-			method := methods.Get(i)
-			available = append(available, fmt.Sprintf("%s/%s", svc.Name, method.Name()))
-			if string(method.Name()) == methodName {
-				return callMethod(ctx, conn, desc, method, inputJSON)
-			}
-		}
-	}
-
-	if len(resolveErrors) > 0 {
-		return nil, fmt.Errorf(
-			"method %q not found via ws. available: %v. descriptor errors: %v",
-			methodName,
-			available,
-			resolveErrors,
-		)
-	}
-
-	return nil, fmt.Errorf("method %q not found via ws. available: %v", methodName, available)
+	return trimmed
 }
